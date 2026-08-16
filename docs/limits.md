@@ -88,10 +88,21 @@ claude-autonomous run STRIPE_KEY -- ./deploy.sh  # agent, freely, from then on
 `run` exports into the child process: not in `argv`, not in `stdout`, not in the
 transcript. `secret list` prints names only.
 
-**What is genuinely left.** The secret has to get into the keychain, and that
-first step is someone typing it. So is a browser login form, and so is a 2FA
-code. Those stay with you — but they are a single command in your own terminal,
-or one login you were going to do anyway, not an ongoing tax on every task.
+**Route 3 — the key is on screen in a dashboard you are signed in to.** The
+agent takes it from there without ever reading it: click the page's own copy
+button, then pipe the clipboard into the keychain.
+
+```bash
+pbpaste | claude-autonomous secret import GROQ_API_KEY
+```
+
+This is strictly better than having the agent read the key off the page. A
+screenshot or page-text read puts the secret into the conversation, where it
+persists — and with `autoUploadSessions` on, syncs. `import` never sees stdout.
+
+**What is genuinely left.** Signing in to the dashboard, and a 2FA code. Those
+stay with you — one login you were going to do anyway, not an ongoing tax on
+every task.
 
 An agent that writes and runs the deploy script without ever holding the key is
 doing the whole job. Holding the key was never the job.

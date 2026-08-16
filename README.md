@@ -55,6 +55,17 @@ keychain, in your own terminal:
 claude-autonomous secret set STRIPE_KEY     # hidden input, straight to keychain
 ```
 
+Or, when the key is already on screen in a dashboard you are signed in to, let
+the agent take it from there — click the page's copy button, then:
+
+```bash
+pbpaste | claude-autonomous secret import GROQ_API_KEY
+```
+
+Clipboard → keychain, without the value being read into the model's context, so
+it never lands in a transcript. This is the route to prefer: reading a key off
+the page with a screenshot puts the secret in the conversation permanently.
+
 From then on the agent can use it freely:
 
 ```bash

@@ -56,6 +56,17 @@ no seu terminal:
 claude-autonomous secret set STRIPE_KEY     # entrada oculta, direto pro chaveiro
 ```
 
+Ou, quando a chave já está na tela de um painel onde você está logado, deixe o
+agente pegar de lá — ele clica no botão de copiar da própria página e:
+
+```bash
+pbpaste | claude-autonomous secret import GROQ_API_KEY
+```
+
+Clipboard → chaveiro, sem o valor ser lido pro contexto do modelo, então ele não
+cai no transcript. É esse o caminho a preferir: ler a chave da página com um
+screenshot deixa o segredo na conversa pra sempre.
+
 Daí em diante o agente usa à vontade:
 
 ```bash

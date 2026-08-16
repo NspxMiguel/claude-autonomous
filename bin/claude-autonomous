@@ -9,7 +9,7 @@
 # overwrite, and the previous file is copied to ~/.claude/backups/ first.
 set -euo pipefail
 
-VERSION="1.1.0"
+VERSION="1.2.0"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 SETTINGS="$CLAUDE_DIR/settings.json"
 BACKUPS="$CLAUDE_DIR/backups"
@@ -256,6 +256,13 @@ secret_set() { # secret_set NAME  — reads from a terminal, never from argv
   read -rs value; printf '\n' >&2
   [ -n "$value" ] || die "empty, nothing stored"
 
+  secret_store "$name" "$value"
+  unset value
+  echo "stored $name"
+}
+
+secret_store() { # secret_store NAME VALUE — the one place that writes
+  local name="$1" value="$2"
   case "$(secret_backend)" in
     keychain)
       security add-generic-password -U -a "$USER" -s "$SECRET_PREFIX:$name" \
@@ -267,8 +274,27 @@ secret_set() { # secret_set NAME  — reads from a terminal, never from argv
       ;;
     *) die "no OS keychain found (macOS Security, or secret-tool on Linux)" ;;
   esac
+}
+
+secret_import() { # secret_import NAME  — value on stdin, never echoed
+  local name="${1:-}"
+  [ -n "$name" ] || die "usage: ... | claude-autonomous secret import NAME"
+  case "$name" in
+    [A-Za-z_]*) ;;
+    *) die "NAME must be a valid environment variable name" ;;
+  esac
+  [ -t 0 ] && die "secret import expects a pipe. For typing one in, use: secret set NAME"
+
+  local value
+  value="$(cat)"
+  value="${value%"${value##*[![:space:]]}"}"   # trim trailing whitespace/newline
+  value="${value#"${value%%[![:space:]]*}"}"   # and leading
+  [ -n "$value" ] || die "nothing on stdin, nothing stored"
+
+  secret_store "$name" "$value"
+  # Report length only. The value itself never reaches stdout.
+  echo "stored $name (${#value} characters)"
   unset value
-  echo "stored $name"
 }
 
 secret_get() { # prints the value — used by `run`, not meant for a transcript
@@ -305,6 +331,7 @@ secret_rm() {
 cmd_secret() {
   case "${1:-list}" in
     set) shift; secret_set "${1:-}" ;;
+    import) shift; secret_import "${1:-}" ;;
     rm|remove|delete) shift; secret_rm "${1:-}" ;;
     list|"")
       local names; names="$(secret_list || true)"
@@ -420,8 +447,13 @@ claude-autonomous — turn permission prompts off in Claude Code, and back on.
 
   secret list                     stored secret names (never values)
   secret set NAME                 store one, typed into your own keychain
+  secret import NAME              store one from stdin, never echoed
   secret rm NAME                  remove one
   run NAME[,NAME] -- cmd ...      run cmd with those secrets in its environment
+
+`import` is for keys already on screen in a dashboard you are signed in to:
+copy it there, then `pbpaste | claude-autonomous secret import GROQ_API_KEY`.
+The value goes clipboard -> keychain without passing through a transcript.
 
 `run` is the point: the command receives the credential, the agent that wrote
 the command does not, and the value never enters a transcript.

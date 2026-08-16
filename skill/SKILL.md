@@ -82,14 +82,23 @@ claude-autonomous run A,B -- python job.py       # several at once
 The value is exported into the child process and never enters argv, stdout, or
 this transcript. Write the script that uses `$STRIPE_KEY`; run it through `run`.
 
-**If the secret is not stored yet**, that is the one thing to hand back —
-because storing it means typing it, and typing a credential is the line:
+**When the key is on screen in a dashboard they are already signed in to** —
+Groq, OpenAI, Stripe, a cloud console — take it from there yourself. Click the
+page's own copy button, then route the clipboard straight into the keychain:
 
-> `claude-autonomous secret set STRIPE_KEY` — run that in your terminal, it
-> reads hidden and goes straight to your keychain. Then I take it from there.
+```bash
+pbpaste | claude-autonomous secret import GROQ_API_KEY     # macOS
+wl-paste | claude-autonomous secret import GROQ_API_KEY    # Wayland
+```
 
-That is a single command in their own terminal, not a research task. Never ask
-them to paste a key into the chat, and never read one back out into a message.
+Clipboard → keychain. The value is never read into context, so it never lands
+in a transcript that may sync to the cloud. `import` reports the character count
+and nothing else. Prefer this over reading the key off the page — a screenshot
+or page-text read puts the secret in the conversation permanently.
+
+**What is actually left for them:** signing in to the dashboard. That is one
+login they were doing anyway, not a per-task tax. Never ask them to paste a key
+into the chat, and never read a stored key back out into a message.
 
 ## Something you notice along the way
 
