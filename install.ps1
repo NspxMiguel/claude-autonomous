@@ -7,6 +7,19 @@
 
 $ErrorActionPreference = 'Stop'
 
+# ConvertFrom-Json -AsHashtable arrived in PowerShell 6. Windows still ships
+# 5.1 as "Windows PowerShell", where this script would fail midway through —
+# after backing up but before writing. Stop before touching anything.
+if ($PSVersionTable.PSVersion.Major -lt 6) {
+    Write-Error @"
+This installer needs PowerShell 7 or newer (you are on $($PSVersionTable.PSVersion)).
+
+Install it, then re-run in the new "PowerShell" (not "Windows PowerShell"):
+    winget install --id Microsoft.PowerShell --source winget
+"@
+    exit 1
+}
+
 $Repo      = 'NspxMiguel/claude-autonomous'
 $Raw       = "https://raw.githubusercontent.com/$Repo/main"
 $ClaudeDir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME '.claude' }

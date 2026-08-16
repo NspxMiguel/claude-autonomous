@@ -21,7 +21,7 @@ vez de perguntar.
 curl -fsSL https://raw.githubusercontent.com/NspxMiguel/claude-autonomous/main/install.sh | bash
 ```
 
-**Windows** (não precisa de administrador)
+**Windows** — PowerShell 7+, não precisa de administrador
 
 ```powershell
 irm https://raw.githubusercontent.com/NspxMiguel/claude-autonomous/main/install.ps1 | iex
@@ -37,6 +37,17 @@ cd claude-autonomous
 
 Depois **reinicie a sessão do Claude Code** — o modo de permissão é lido na
 abertura.
+
+### Suporte por sistema, sem enfeite
+
+| | Config on/off/status | `secret` + `run` | Como foi verificado |
+| --- | --- | --- | --- |
+| **macOS** | sim | Chaveiro | De ponta a ponta no 26.5, com chave real guardada e usada |
+| **Linux** | sim | `secret-tool` | Install, on/off/status e códigos de saída testados em container Debian 12. O `secret-tool` precisa de D-Bus de sessão e chaveiro destravado — máquina headless não tem, e o erro agora diz isso |
+| **Windows** | só instala | não tem | **Não testado.** O instalador grava a mesma config, mas o `bin/claude-autonomous` é script bash, então on/off/status/secret/run ainda não existem lá. Pra desfazer na mão: `permissions.defaultMode` de volta pra `"default"` |
+
+Precisa de `python3` no macOS e no Linux (é ele que faz o merge do JSON), e
+PowerShell 7+ no Windows.
 
 ```bash
 claude-autonomous status   # o que está valendo agora

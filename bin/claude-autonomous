@@ -9,7 +9,7 @@
 # overwrite, and the previous file is copied to ~/.claude/backups/ first.
 set -euo pipefail
 
-VERSION="1.2.0"
+VERSION="1.2.1"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 SETTINGS="$CLAUDE_DIR/settings.json"
 BACKUPS="$CLAUDE_DIR/backups"
@@ -262,18 +262,38 @@ secret_set() { # secret_set NAME  — reads from a terminal, never from argv
 }
 
 secret_store() { # secret_store NAME VALUE — the one place that writes
-  local name="$1" value="$2"
+  local name="$1" value="$2" err=""
   case "$(secret_backend)" in
     keychain)
-      security add-generic-password -U -a "$USER" -s "$SECRET_PREFIX:$name" \
-        -w "$value" -D "claude-autonomous secret" >/dev/null
+      # Failures are swallowed here on purpose: the read-back below is the
+      # single verdict, so a backend that half-fails cannot report success.
+      err="$(security add-generic-password -U -a "$USER" \
+               -s "$SECRET_PREFIX:$name" -w "$value" \
+               -D "claude-autonomous secret" 2>&1 >/dev/null || true)"
       ;;
     libsecret)
-      printf '%s' "$value" | secret-tool store --label="$SECRET_PREFIX:$name" \
-        service "$SECRET_PREFIX" key "$name"
+      err="$(printf '%s' "$value" | secret-tool store \
+               --label="$SECRET_PREFIX:$name" \
+               service "$SECRET_PREFIX" key "$name" 2>&1 >/dev/null || true)"
       ;;
     *) die "no OS keychain found (macOS Security, or secret-tool on Linux)" ;;
   esac
+
+  # Read it back. A backend can fail in ways that are not a clean exit code —
+  # secret-tool without a running D-Bus prints an error about machine-id — and
+  # reporting "stored" for a value that is not there is the worst outcome.
+  local check
+  check="$(secret_get "$name" 2>/dev/null || true)"
+  if [ "$check" != "$value" ]; then
+    printf 'could not store %s — the keychain read back empty or different.\n' "$name" >&2
+    [ -n "$err" ] && printf '  backend said: %s\n' "$err" >&2
+    [ "$(secret_backend)" = libsecret ] && printf '%s\n' \
+      '  secret-tool needs a session D-Bus and an unlocked keyring. A headless
+  or containerised box has neither: start one (dbus-run-session, gnome-keyring)
+  or pass the value through the environment instead.' >&2
+    exit 1
+  fi
+  unset check
 }
 
 secret_import() { # secret_import NAME  — value on stdin, never echoed

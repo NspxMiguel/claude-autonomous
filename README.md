@@ -20,7 +20,7 @@ and a skill that holds the other half of the deal — acting instead of asking.
 curl -fsSL https://raw.githubusercontent.com/NspxMiguel/claude-autonomous/main/install.sh | bash
 ```
 
-**Windows** (no administrator rights needed)
+**Windows** — PowerShell 7+, no administrator rights needed
 
 ```powershell
 irm https://raw.githubusercontent.com/NspxMiguel/claude-autonomous/main/install.ps1 | iex
@@ -36,6 +36,17 @@ cd claude-autonomous
 
 Then **restart your Claude Code session** — the permission mode is read at
 startup.
+
+### Platform support, honestly
+
+| | Settings on/off/status | `secret` + `run` | Verified how |
+| --- | --- | --- | --- |
+| **macOS** | yes | Keychain | End to end on 26.5, including a real key stored and used |
+| **Linux** | yes | `secret-tool` | Install, on/off/status and exit codes tested in a Debian 12 container. `secret-tool` needs a session D-Bus and an unlocked keyring — headless boxes will not have one, and the error now says so |
+| **Windows** | install only | not available | **Untested.** The installer writes the same settings, but `bin/claude-autonomous` is a bash script, so on/off/status/secret/run do not exist there yet. Undo by hand: set `permissions.defaultMode` back to `"default"` |
+
+Requires `python3` on macOS and Linux (it does the JSON merge), and PowerShell 7+
+on Windows.
 
 ```bash
 claude-autonomous status   # what is actually set right now
