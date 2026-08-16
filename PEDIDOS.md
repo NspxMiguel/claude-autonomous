@@ -3,8 +3,7 @@
 Repositório público que empacota o modo autônomo do Claude Code para qualquer
 pessoa instalar com um comando.
 
-**Nada aberto do meu lado.** O que sobra abaixo é dele ou precisa de máquina
-que eu não tenho.
+**Nada aberto do meu lado.** O que sobra abaixo é dele.
 
 ---
 
@@ -80,19 +79,40 @@ pendência que existia aqui está resolvida.
 
 ---
 
-## [BLOQUEADO — precisa de máquina Windows] CLI em PowerShell
+## [ENTREGUE] Rodar em Mac, Windows e Linux — v1.3.0
 
-O `bin/claude-autonomous` é bash. No Windows o instalador grava a mesma config,
-mas `off`, `status`, `secret` e `run` não existem — desfazer é na mão, trocando
-`permissions.defaultMode` pra `"default"`.
+**Palavras dele:** *"tem q funcionar em tudo, mac windows e linux. pode emular
+windows e linux ai pra testar se precisar"*
 
-Portar é direto (o `install.ps1` já faz o merge em PowerShell), mas escrever
-sem poder executar é entregar coisa não testada. Está declarado no README com
-essas palavras, em vez de vender suporte que não existe.
+Existem duas implementações da mesma ferramenta — `bin/claude-autonomous` (bash)
+e `bin/claude-autonomous.ps1` (PowerShell) — que gravam a mesma config e se
+reconhecem: a suite verifica que o modo ligado por uma é enxergado pela outra.
 
-Testado que dá: o `install.ps1` agora barra PowerShell 5.1 antes de tocar em
-qualquer arquivo, porque `ConvertFrom-Json -AsHashtable` exige a 6+ e ele ia
-falhar depois do backup e antes de gravar.
+| | Estado | Segredos | Verificação |
+| --- | --- | --- | --- |
+| macOS | completo | Chaveiro | 39/39 PowerShell + suite bash |
+| Linux | completo | `secret-tool` | 39/39 PowerShell + suite bash, container Debian 12 com D-Bus e keyring destravado |
+| Windows | completo | DPAPI | Tudo menos a chamada DPAPI, coberta por comando de forma que renderiza as branches do Windows de qualquer host |
+
+**Cinco defeitos que só apareceram porque foi testado de verdade:**
+
+1. `secret-tool search` escreve no **stderr** — o `2>/dev/null` jogava fora, e o
+   `list` nunca mostrava nada no Linux. E as chaves ficam em `attribute.key`,
+   não `key`. Esse mesmo stream traz a linha `secret = <valor>`, então a
+   extração precisa continuar exata: um grep frouxo passaria a vazar segredo;
+2. parâmetro chamado `$Args` é sombreado pela variável automática de mesmo nome
+   dentro de toda função PowerShell — `secret` e `run` recebiam vazio;
+3. `$x = if (...) { @(um item) }` desenrola o array e devolve string, quebrando
+   o parsing com um argumento só sob StrictMode;
+4. `secret import` sem pipe travava pra sempre em vez de dar erro;
+5. `install.ps1` duplicava o merge; agora instala e chama o CLI, com shim `.cmd`
+   e PATH de usuário no Windows.
+
+**Emulação:** Linux em container Debian 12 (dois runs completos). Windows real
+não foi possível — tentei o Wine do CrossOver, que não cria prefixo por linha de
+comando sem a infra de bottle dele, e mesmo se criasse o DPAPI sob Wine não
+provaria Windows de verdade. Por isso a parametrização de plataforma: as
+branches do Windows são renderizadas e verificadas a partir do macOS.
 
 ---
 
