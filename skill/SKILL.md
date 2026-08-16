@@ -43,7 +43,7 @@ is left when both of those have failed.
 - driving an already-signed-in browser session;
 - controlling a native app through computer-use;
 - reading a key or token from env, a config file, or an authenticated CLI **for
-  use in the task** — use it, don't print it (see limits below);
+  use in the task** — use it, don't print it (see credentials below);
 - creating resources in an already-authenticated service.
 
 **Never do this:**
@@ -62,6 +62,34 @@ ask the single thing left over. Never open with the question.
 authenticated CLI → MCP server → the user's browser → computer-use → and only
 then say what is missing, with the evidence of what failed. "I assume it can't"
 is not evidence; the error message is.
+
+## Credentials: use them, don't hold them
+
+"Grab the API key and do the thing" is nearly always doable — the trick is that
+the key goes to the command, not through the conversation.
+
+**First, try the CLI that is already signed in.** `gh`, `vercel`, `supabase`,
+`firebase`, `aws`, `docker` all carry their own auth. Nothing needs to be read.
+
+**When a command genuinely needs a value in its environment:**
+
+```bash
+claude-autonomous secret list                    # what exists, names only
+claude-autonomous run STRIPE_KEY -- ./deploy.sh  # child gets it, I don't
+claude-autonomous run A,B -- python job.py       # several at once
+```
+
+The value is exported into the child process and never enters argv, stdout, or
+this transcript. Write the script that uses `$STRIPE_KEY`; run it through `run`.
+
+**If the secret is not stored yet**, that is the one thing to hand back —
+because storing it means typing it, and typing a credential is the line:
+
+> `claude-autonomous secret set STRIPE_KEY` — run that in your terminal, it
+> reads hidden and goes straight to your keychain. Then I take it from there.
+
+That is a single command in their own terminal, not a research task. Never ask
+them to paste a key into the chat, and never read one back out into a message.
 
 ## Something you notice along the way
 

@@ -40,8 +40,35 @@ abertura.
 
 ```bash
 claude-autonomous status   # o que está valendo agora
+claude-autonomous doctor   # config + ferramentas + permissões do sistema
 claude-autonomous off      # desfaz tudo
 ```
+
+---
+
+## Credencial, sem entregar a credencial
+
+O pedido por trás de "deixa ele pegar a API e fazer tudo" é legítimo, e não exige
+que o agente segure a chave em momento nenhum. Guarde uma vez, no seu chaveiro,
+no seu terminal:
+
+```bash
+claude-autonomous secret set STRIPE_KEY     # entrada oculta, direto pro chaveiro
+```
+
+Daí em diante o agente usa à vontade:
+
+```bash
+claude-autonomous run STRIPE_KEY -- ./deploy.sh
+claude-autonomous run AWS_KEY,AWS_SECRET -- python job.py
+```
+
+O valor é exportado no processo filho. Não está no `argv`, não está no `stdout`,
+não está no transcript, e o `secret list` mostra só os nomes. Usa o Chaveiro do
+macOS, ou o `secret-tool` no Linux.
+
+Na maioria das vezes nem precisa disso — `gh`, `vercel`, `supabase`, `firebase`,
+`aws` e `docker` carregam a própria autenticação, e o agente só usa.
 
 ---
 
@@ -85,6 +112,19 @@ anterior é copiado para `~/.claude/backups/` a cada execução.
 | `askUserQuestionTimeout: 60s` | Se o modelo perguntar, a sessão segue em vez de travar |
 | `fileCheckpointingEnabled: true` | `/rewind` continua funcionando — o último desfazer que sobra |
 | `BASH_MAX_TIMEOUT_MS: 600000` | Comando longo termina (2 min → 10 min) |
+
+Não perguntar é só metade de "faz sem mim". A outra metade é **terminar** sem
+você, e você conseguir alcançar a sessão enquanto isso acontece:
+
+| Config | Efeito |
+| --- | --- |
+| `doneMeansMerged: true` | O trabalho segue até um PR pronto pra merge, um cron armado ou um próximo passo que se sustenta sozinho — não até um relatório de status |
+| `effortLevel: high` | Trabalho sem supervisão não tem quem pegue um atalho errado |
+| `remoteControlAtStartup: true` | Comandar a sessão pelo celular |
+| `autoUploadSessions: true` | Sessão legível pelo claude.ai |
+| `agentPushNotifEnabled`, `inputNeededNotifEnabled` | Se algo realmente precisar de você, chega até você em vez de ficar esperando |
+| `crossSessionInbound: accept` | Suas outras sessões podem passar trabalho pra esta |
+| `autoMemoryEnabled: true` | As decisões sobrevivem à sessão |
 
 `fileCheckpointingEnabled` é de propósito. Sem prompt nenhum, o `/rewind` é a
 única coisa entre uma edição errada e uma tarde perdida.

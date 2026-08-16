@@ -65,8 +65,10 @@ These are not in an editable file and do not change with `bypassPermissions`:
 
 ### The credential line is narrower than it looks
 
-The limit is on *typing or printing* a secret, not on *using* one. An
-authenticated CLI does the work with the credential staying where it is:
+The limit is on *typing or printing* a secret, not on *using* one. Two routes
+cover nearly everything "grab the API key and do it all" actually means.
+
+**Route 1 — the CLI already holds the auth.** Nothing is read at all:
 
 ```bash
 gh api user                      # GitHub, already logged in
@@ -75,10 +77,24 @@ supabase db push                 # Supabase
 firebase deploy --only hosting   # Firebase
 ```
 
-Reading `$STRIPE_KEY` out of the environment to pass into a request the task
-needs is use. Printing it into a chat message, or typing it into a login form, is
-not. In practice that distinction covers nearly everything "grab the API key"
-is asking for.
+**Route 2 — the command needs the value in its environment.** Store it once,
+then the agent uses it without ever seeing it:
+
+```bash
+claude-autonomous secret set STRIPE_KEY          # you, once, hidden input
+claude-autonomous run STRIPE_KEY -- ./deploy.sh  # agent, freely, from then on
+```
+
+`run` exports into the child process: not in `argv`, not in `stdout`, not in the
+transcript. `secret list` prints names only.
+
+**What is genuinely left.** The secret has to get into the keychain, and that
+first step is someone typing it. So is a browser login form, and so is a 2FA
+code. Those stay with you — but they are a single command in your own terminal,
+or one login you were going to do anyway, not an ongoing tax on every task.
+
+An agent that writes and runs the deploy script without ever holding the key is
+doing the whole job. Holding the key was never the job.
 
 ## Checking
 

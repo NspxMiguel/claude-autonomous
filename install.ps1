@@ -94,6 +94,19 @@ $cfg.skipWorkflowUsageWarning         = $true
 $cfg.askUserQuestionTimeout           = '60s'
 $cfg.fileCheckpointingEnabled         = $true
 
+# Not asking is half of "does it without me". The other half is finishing
+# without me, and being reachable while it happens.
+$cfg.doneMeansMerged          = $true
+$cfg.effortLevel              = 'high'
+$cfg.remoteControlAtStartup   = $true
+$cfg.autoUploadSessions       = $true
+$cfg.inputNeededNotifEnabled  = $true
+$cfg.agentPushNotifEnabled    = $true
+$cfg.crossSessionInbound      = 'accept'
+$cfg.daemonColdStart          = 'transient'
+$cfg.autoMemoryEnabled        = $true
+$cfg.cleanupPeriodDays        = 365
+
 if (-not $cfg.env) { $cfg.env = @{} }
 foreach ($kv in @{ BASH_DEFAULT_TIMEOUT_MS='600000'; BASH_MAX_TIMEOUT_MS='600000'; MCP_TIMEOUT='60000' }.GetEnumerator()) {
     if (-not $cfg.env[$kv.Key]) { $cfg.env[$kv.Key] = $kv.Value }

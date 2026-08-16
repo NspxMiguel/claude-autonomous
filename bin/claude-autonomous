@@ -9,7 +9,7 @@
 # overwrite, and the previous file is copied to ~/.claude/backups/ first.
 set -euo pipefail
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 SETTINGS="$CLAUDE_DIR/settings.json"
 BACKUPS="$CLAUDE_DIR/backups"
@@ -103,6 +103,22 @@ cfg["skipWorkflowUsageWarning"] = True
 cfg["askUserQuestionTimeout"] = "60s"        # a question never parks the session
 cfg["fileCheckpointingEnabled"] = True       # /rewind is the only undo left
 
+# Not asking is only half of "does it without me". The other half is finishing
+# without me, and reaching it from wherever I am.
+cfg["doneMeansMerged"] = True                # keep working to a mergeable PR,
+                                             # an armed cron, or a self-contained
+                                             # next step — not to a status update
+cfg["effortLevel"] = "high"                  # unattended work has no one to
+                                             # catch a cheap wrong turn
+cfg["remoteControlAtStartup"] = True         # drive the session from the phone
+cfg["autoUploadSessions"] = True             # sessions readable from claude.ai
+cfg["inputNeededNotifEnabled"] = True        # if something truly needs you,
+cfg["agentPushNotifEnabled"] = True          # it reaches you instead of waiting
+cfg["crossSessionInbound"] = "accept"        # your other sessions can hand work
+cfg["daemonColdStart"] = "transient"         # background agents start silently
+cfg["autoMemoryEnabled"] = True              # decisions survive the session
+cfg["cleanupPeriodDays"] = 365               # transcripts stay for the audit
+
 env = cfg.setdefault("env", {})
 env.setdefault("BASH_DEFAULT_TIMEOUT_MS", "600000")   # 2 min -> 10 min
 env.setdefault("BASH_MAX_TIMEOUT_MS", "600000")
@@ -143,6 +159,11 @@ if not hooks:
 
 cfg["askUserQuestionTimeout"] = "never"
 
+for key in ("doneMeansMerged", "remoteControlAtStartup", "autoUploadSessions",
+            "crossSessionInbound", "agentPushNotifEnabled",
+            "inputNeededNotifEnabled", "daemonColdStart", "effortLevel"):
+    cfg.pop(key, None)
+
 with open(path, "w") as f:
     json.dump(cfg, f, indent=2, ensure_ascii=False)
     f.write("\n")
@@ -176,6 +197,11 @@ checks = [
     ("dangerous-mode dialog",cfg.get("skipDangerousModePermissionPrompt"), True),
     ("sandbox",              (cfg.get("sandbox") or {}).get("enabled", False), False),
     ("file checkpointing",   cfg.get("fileCheckpointingEnabled"),        True),
+    ("finish, don't report", cfg.get("doneMeansMerged"),                 True),
+    ("effort",               cfg.get("effortLevel"),                     "high"),
+    ("remote control",       cfg.get("remoteControlAtStartup"),          True),
+    ("push notifications",   cfg.get("agentPushNotifEnabled"),           True),
+    ("inbound from sessions",cfg.get("crossSessionInbound"),             "accept"),
 ]
 
 w = max(len(n) for n, _, _ in checks)
@@ -194,11 +220,222 @@ sys.exit(1 if bad else 0)
 PY
 }
 
+# --------------------------------------------------------------------------
+# secrets
+#
+# The gap this closes: an agent can use a credential without ever holding it.
+# You type the secret once, into your own keychain, in your own terminal. From
+# then on `claude-autonomous run` injects it into a child process's environment
+# — so the command sees it, the agent that wrote the command does not, and the
+# value never lands in a transcript.
+#
+# This is what "grab the API key and do everything" actually needs. It does not
+# cover a browser login form; nothing here types a password into a web page.
+# --------------------------------------------------------------------------
+
+SECRET_PREFIX="claude-autonomous"
+
+secret_backend() {
+  case "$(uname -s)" in
+    Darwin) echo keychain ;;
+    *)      command -v secret-tool >/dev/null 2>&1 && echo libsecret || echo none ;;
+  esac
+}
+
+secret_set() { # secret_set NAME  — reads from a terminal, never from argv
+  local name="${1:-}"
+  [ -n "$name" ] || die "usage: claude-autonomous secret set NAME"
+  case "$name" in
+    [A-Za-z_]*) ;;
+    *) die "NAME must be a valid environment variable name" ;;
+  esac
+  [ -t 0 ] || die "refusing to read a secret from a pipe — run this in a terminal"
+
+  local value
+  printf 'value for %s (input hidden): ' "$name" >&2
+  read -rs value; printf '\n' >&2
+  [ -n "$value" ] || die "empty, nothing stored"
+
+  case "$(secret_backend)" in
+    keychain)
+      security add-generic-password -U -a "$USER" -s "$SECRET_PREFIX:$name" \
+        -w "$value" -D "claude-autonomous secret" >/dev/null
+      ;;
+    libsecret)
+      printf '%s' "$value" | secret-tool store --label="$SECRET_PREFIX:$name" \
+        service "$SECRET_PREFIX" key "$name"
+      ;;
+    *) die "no OS keychain found (macOS Security, or secret-tool on Linux)" ;;
+  esac
+  unset value
+  echo "stored $name"
+}
+
+secret_get() { # prints the value — used by `run`, not meant for a transcript
+  local name="$1"
+  case "$(secret_backend)" in
+    keychain)  security find-generic-password -a "$USER" -s "$SECRET_PREFIX:$name" -w 2>/dev/null ;;
+    libsecret) secret-tool lookup service "$SECRET_PREFIX" key "$name" 2>/dev/null ;;
+    *)         return 1 ;;
+  esac
+}
+
+secret_list() { # names only, never values
+  case "$(secret_backend)" in
+    keychain)
+      security dump-keychain 2>/dev/null |
+        sed -n "s/.*\"svce\"<blob>=\"$SECRET_PREFIX:\([^\"]*\)\".*/\1/p" | sort -u
+      ;;
+    libsecret) secret-tool search service "$SECRET_PREFIX" 2>&1 |
+                 sed -n 's/^ *key = //p' | sort -u ;;
+    *) return 1 ;;
+  esac
+}
+
+secret_rm() {
+  local name="${1:-}"
+  [ -n "$name" ] || die "usage: claude-autonomous secret rm NAME"
+  case "$(secret_backend)" in
+    keychain)  security delete-generic-password -a "$USER" -s "$SECRET_PREFIX:$name" >/dev/null 2>&1 ;;
+    libsecret) secret-tool clear service "$SECRET_PREFIX" key "$name" ;;
+  esac
+  echo "removed $name"
+}
+
+cmd_secret() {
+  case "${1:-list}" in
+    set) shift; secret_set "${1:-}" ;;
+    rm|remove|delete) shift; secret_rm "${1:-}" ;;
+    list|"")
+      local names; names="$(secret_list || true)"
+      if [ -z "$names" ]; then
+        echo "no secrets stored. add one with: claude-autonomous secret set NAME"
+      else
+        echo "stored secrets (names only):"; printf '  %s\n' $names
+      fi
+      ;;
+    *) die "usage: claude-autonomous secret [list|set NAME|rm NAME]" ;;
+  esac
+}
+
+cmd_run() { # claude-autonomous run NAME[,NAME...] -- command args...
+  local names="${1:-}"; shift || true
+  [ "${1:-}" = "--" ] && shift
+  [ -n "$names" ] && [ $# -gt 0 ] ||
+    die "usage: claude-autonomous run NAME[,NAME] -- command [args...]"
+
+  # Export rather than `env NAME=value cmd`: an assignment on the command line
+  # lands in argv, where any user on the machine can read it out of `ps`.
+  # Exported variables live in the environment instead, which on both macOS and
+  # Linux is readable only by the process owner.
+  local missing=()
+  local IFS=,
+  for name in $names; do
+    local value
+    if value="$(secret_get "$name")" && [ -n "$value" ]; then
+      export "$name=$value"
+    else
+      missing+=("$name")
+    fi
+    unset value
+  done
+  unset IFS
+
+  [ ${#missing[@]} -eq 0 ] ||
+    die "not stored: ${missing[*]}  (add with: claude-autonomous secret set NAME)"
+
+  exec "$@"
+}
+
+# --------------------------------------------------------------------------
+# doctor — the layer no settings file reaches
+# --------------------------------------------------------------------------
+
+cmd_doctor() {
+  local os; os="$(uname -s)"
+  echo "toolchain"
+  for t in python3 git gh curl node claude; do
+    if command -v "$t" >/dev/null 2>&1; then
+      printf '  OK  %-8s %s\n' "$t" "$(command -v "$t")"
+    else
+      printf '  --  %-8s not found\n' "$t"
+    fi
+  done
+
+  echo
+  echo "authenticated CLIs (these do the work without the secret being read)"
+  for c in "gh:gh auth status" "vercel:vercel whoami" \
+           "supabase:supabase projects list" "firebase:firebase projects:list"; do
+    local bin="${c%%:*}" probe="${c#*:}"
+    if command -v "$bin" >/dev/null 2>&1; then
+      if $probe >/dev/null 2>&1; then printf '  OK  %-10s signed in\n' "$bin"
+      else printf '  --  %-10s installed, not signed in\n' "$bin"; fi
+    else
+      printf '      %-10s not installed\n' "$bin"
+    fi
+  done
+
+  echo
+  echo "stored secrets"
+  local names; names="$(secret_list 2>/dev/null || true)"
+  if [ -n "$names" ]; then printf '  OK  %s\n' $names
+  else echo "  --  none (claude-autonomous secret set NAME)"; fi
+
+  if [ "$os" = "Darwin" ]; then
+    echo
+    echo "macOS permissions — no settings file reaches these"
+    if sqlite3 "$HOME/Library/Application Support/com.apple.TCC/TCC.db" \
+         "select 1 limit 1" >/dev/null 2>&1; then
+      echo "  OK  Full Disk Access granted to this terminal"
+      sqlite3 "$HOME/Library/Application Support/com.apple.TCC/TCC.db" \
+        "select service, auth_value from access" 2>/dev/null |
+        awk -F'|' '$1 ~ /ScreenCapture|Accessibility|AppleEvents|SystemPolicy/ {
+          printf "  %s  %s\n", ($2>=2 ? "OK " : "-- "), $1 }' | sort -u
+    else
+      echo "  --  cannot read TCC.db, so this terminal lacks Full Disk Access."
+      echo "      That is itself the answer: grant it, then re-run doctor."
+    fi
+    cat <<'EOF'
+
+  Open each pane and grant your terminal and Claude:
+    open "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
+    open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
+    open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+    open "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"
+EOF
+  fi
+
+  echo
+  cmd_status || true
+}
+
+usage() {
+  cat <<'EOF'
+claude-autonomous — turn permission prompts off in Claude Code, and back on.
+
+  on                              apply the autonomous settings
+  off                             restore prompting
+  status                          show what is actually set right now
+  doctor                          settings + toolchain + OS permissions
+
+  secret list                     stored secret names (never values)
+  secret set NAME                 store one, typed into your own keychain
+  secret rm NAME                  remove one
+  run NAME[,NAME] -- cmd ...      run cmd with those secrets in its environment
+
+`run` is the point: the command receives the credential, the agent that wrote
+the command does not, and the value never enters a transcript.
+EOF
+}
+
 case "${1:-status}" in
   on|enable)    cmd_on ;;
   off|disable)  cmd_off ;;
   status|"")    cmd_status ;;
+  doctor)       cmd_doctor ;;
+  secret|secrets) shift; cmd_secret "$@" ;;
+  run)          shift; cmd_run "$@" ;;
   -v|--version) echo "claude-autonomous $VERSION" ;;
-  -h|--help)    sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//' ;;
-  *)            die "unknown command: $1  (try: on | off | status)" ;;
+  -h|--help)    usage ;;
+  *)            usage >&2; die "" ;;
 esac

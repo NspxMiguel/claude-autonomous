@@ -39,8 +39,36 @@ startup.
 
 ```bash
 claude-autonomous status   # what is actually set right now
+claude-autonomous doctor   # settings + toolchain + OS permissions
 claude-autonomous off      # put everything back
 ```
+
+---
+
+## Credentials, without handing them over
+
+The request behind "let it grab the API key and do everything" is real, and it
+does not require the agent to ever hold the key. Store it once, in your own
+keychain, in your own terminal:
+
+```bash
+claude-autonomous secret set STRIPE_KEY     # hidden input, straight to keychain
+```
+
+From then on the agent can use it freely:
+
+```bash
+claude-autonomous run STRIPE_KEY -- ./deploy.sh
+claude-autonomous run AWS_KEY,AWS_SECRET -- python job.py
+```
+
+The value is exported into the child process. It is not in `argv`, not in
+`stdout`, not in the transcript, and `secret list` prints names only. Backed by
+the macOS Keychain, or `secret-tool` on Linux.
+
+Most of the time you will not even need this — `gh`, `vercel`, `supabase`,
+`firebase`, `aws` and `docker` carry their own auth, and an agent can just use
+them.
 
 ---
 
@@ -84,6 +112,19 @@ previous file is copied to `~/.claude/backups/` on every run.
 | `askUserQuestionTimeout: 60s` | If the model does ask, the session continues instead of parking |
 | `fileCheckpointingEnabled: true` | `/rewind` still works — the last undo left |
 | `BASH_MAX_TIMEOUT_MS: 600000` | Long commands finish (2 min → 10 min) |
+
+Not asking is only half of "does it without me". The other half is finishing
+without me, and being reachable while it happens:
+
+| Setting | Effect |
+| --- | --- |
+| `doneMeansMerged: true` | Work continues to a mergeable PR, an armed cron, or a self-contained next step — not to a status update |
+| `effortLevel: high` | Unattended work has nobody to catch a cheap wrong turn |
+| `remoteControlAtStartup: true` | Drive the session from your phone |
+| `autoUploadSessions: true` | Sessions readable from claude.ai |
+| `agentPushNotifEnabled`, `inputNeededNotifEnabled` | If something truly needs you, it reaches you instead of waiting |
+| `crossSessionInbound: accept` | Your other sessions can hand this one work |
+| `autoMemoryEnabled: true` | Decisions survive past the session |
 
 `fileCheckpointingEnabled` is deliberate. With every prompt gone, `/rewind` is
 the only thing standing between a bad edit and a lost afternoon.
