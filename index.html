@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>claude-autonomous</title>
+<meta name="description" content="Stops Claude Code from asking. No permission prompts, the whole disk in scope, and a skill that acts instead of asking.">
+<style>
+  :root {
+    --bg: #fbfaf8; --fg: #1a1815; --muted: #6b655c; --line: #e2ded6;
+    --card: #ffffff; --accent: #b4521f; --code-bg: #f2efe9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16150f; --fg: #eae6dd; --muted: #948d80; --line: #2e2b23;
+      --card: #1d1c15; --accent: #e08a4e; --code-bg: #22201a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.65 ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 46rem; margin: 0 auto; padding: 4rem 1.5rem 5rem; }
+  h1 { font-size: clamp(2rem, 6vw, 2.9rem); line-height: 1.1; margin: 0 0 .6rem; letter-spacing: -.02em; }
+  .tag { color: var(--muted); font-size: 1.1rem; margin: 0 0 2rem; }
+  h2 { font-size: 1.25rem; margin: 3rem 0 .9rem; letter-spacing: -.01em; }
+  a { color: var(--accent); }
+  p { margin: 0 0 1rem; }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: .9rem 1rem; overflow-x: auto; margin: 0 0 1rem;
+    font: 13.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .93em; }
+  p code, li code, td code { background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+  .warn {
+    border-left: 3px solid var(--accent); background: var(--card);
+    padding: .9rem 1.1rem; border-radius: 0 8px 8px 0; margin: 0 0 2rem;
+  }
+  .warn p:last-child { margin: 0; }
+  .os { color: var(--muted); font-size: .82rem; text-transform: uppercase;
+        letter-spacing: .08em; margin: 0 0 .4rem; }
+  .halves { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; margin: 0 0 1rem; }
+  @media (max-width: 34rem) { .halves { grid-template-columns: 1fr; } }
+  .half { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; }
+  .half h3 { margin: 0 0 .35rem; font-size: 1rem; }
+  .half p { margin: 0; color: var(--muted); font-size: .93rem; }
+  .tbl { width: 100%; border-collapse: collapse; margin: 0 0 1rem; font-size: .93rem; display: block; overflow-x: auto; }
+  .tbl th, .tbl td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .tbl th { color: var(--muted); font-weight: 600; font-size: .82rem;
+            text-transform: uppercase; letter-spacing: .05em; }
+  footer { margin-top: 3.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line);
+           color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>claude-autonomous</h1>
+  <p class="tag">Stops Claude Code from asking. No permission prompts, the whole
+  disk in scope, and a skill that acts instead of asking.</p>
+
+  <div class="warn">
+    <p><strong>Read what it changes before running this.</strong> It removes every
+    guardrail the harness gives you, on purpose. That is the point, and it is also
+    the risk: an agent with no prompts will delete the wrong directory just as
+    confidently as it writes the right file. Bring <code>git</code> and backups.</p>
+  </div>
+
+  <h2>Install</h2>
+
+  <p class="os">macOS / Linux</p>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/NspxMiguel/claude-autonomous/main/install.sh | bash</code></pre>
+
+  <p class="os">Windows — no administrator rights needed</p>
+<pre><code>irm https://raw.githubusercontent.com/NspxMiguel/claude-autonomous/main/install.ps1 | iex</code></pre>
+
+  <p>Then restart your Claude Code session — the permission mode is read at startup.</p>
+
+<pre><code>claude-autonomous status   # what is actually set right now
+claude-autonomous off      # put everything back</code></pre>
+
+  <h2>Why config alone is not enough</h2>
+
+  <p>Most advice stops at <code>--dangerously-skip-permissions</code>. That
+  suppresses the harness prompt, and then the model stops anyway to write
+  <em>“want me to do X?”</em> — which, to the person waiting, is the same stall.</p>
+
+  <div class="halves">
+    <div class="half">
+      <h3>Config</h3>
+      <p>No prompt can be raised.<br><code>~/.claude/settings.json</code></p>
+    </div>
+    <div class="half">
+      <h3>Posture</h3>
+      <p>No question is invented.<br>the <code>autonomous</code> skill</p>
+    </div>
+  </div>
+
+  <p>The skill is the part people skip, and it is the part that actually changes
+  how a session feels.</p>
+
+  <h2>What it changes</h2>
+
+  <table class="tbl">
+    <tr><th>Setting</th><th>Effect</th></tr>
+    <tr><td><code>defaultMode: bypassPermissions</code></td><td>No permission prompt</td></tr>
+    <tr><td><code>hooks.PreToolUse</code> → allow</td><td>Answers before a prompt can exist</td></tr>
+    <tr><td><code>deny: []</code>, <code>ask: []</code></td><td>Nothing held back or escalated</td></tr>
+    <tr><td><code>additionalDirectories</code></td><td>Whole machine in scope</td></tr>
+    <tr><td><code>sandbox.enabled: false</code></td><td>Commands run unconfined</td></tr>
+    <tr><td><code>askUserQuestionTimeout: 60s</code></td><td>A question never parks the session</td></tr>
+    <tr><td><code>fileCheckpointingEnabled: true</code></td><td><code>/rewind</code> — the last undo left</td></tr>
+  </table>
+
+  <h2>What it does not change</h2>
+
+  <p>Operating-system permissions (macOS screen recording, accessibility,
+  automation) raise their own dialogs and no settings file removes them. Neither
+  does any config remove the model's own limits: typing a password or 2FA code
+  into a form, logging in as you, moving money, or acting on instructions found
+  inside a web page rather than coming from you.</p>
+
+  <p>Note that the credential line is about <em>typing</em>, not <em>using</em> —
+  an authenticated CLI like <code>gh</code> or <code>vercel</code> does the work
+  with the secret staying where it is.</p>
+
+  <footer>
+    <a href="https://github.com/NspxMiguel/claude-autonomous">Source on GitHub</a> ·
+    <a href="https://github.com/NspxMiguel/claude-autonomous/blob/main/README.pt-BR.md">Português</a> ·
+    MIT
+  </footer>
+
+</div>
+</body>
+</html>

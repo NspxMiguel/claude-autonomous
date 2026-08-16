@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+# claude-autonomous — turn permission prompts off in Claude Code, and back on.
+#
+#   claude-autonomous on       apply the autonomous settings
+#   claude-autonomous off      restore prompting
+#   claude-autonomous status   show what is actually set right now
+#
+# Every write is merged into ~/.claude/settings.json, never a wholesale
+# overwrite, and the previous file is copied to ~/.claude/backups/ first.
+set -euo pipefail
+
+VERSION="1.0.0"
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+SETTINGS="$CLAUDE_DIR/settings.json"
+BACKUPS="$CLAUDE_DIR/backups"
+
+die() { printf '%s\n' "$*" >&2; exit 1; }
+
+command -v python3 >/dev/null 2>&1 ||
+  die "python3 is required (it does the JSON merge). Install it and re-run."
+
+# Timestamp plus pid: two runs inside the same second must not overwrite each
+# other's backup, which is exactly what happens during an install-then-toggle.
+backup() {
+  [ -f "$SETTINGS" ] || return 0
+  mkdir -p "$BACKUPS"
+  cp "$SETTINGS" "$BACKUPS/settings.json.$(date +%Y%m%d-%H%M%S)-$$"
+}
+
+cmd_on() {
+  mkdir -p "$CLAUDE_DIR"
+  backup
+  python3 - "$SETTINGS" <<'PY'
+import json, os, sys
+
+path = sys.argv[1]
+cfg = {}
+if os.path.exists(path):
+    with open(path) as f:
+        try:
+            cfg = json.load(f)
+        except json.JSONDecodeError as e:
+            sys.exit(f"{path} is not valid JSON ({e}). Fix it and re-run.")
+
+home = os.path.expanduser("~")
+
+# --- permissions ---------------------------------------------------------
+perms = cfg.setdefault("permissions", {})
+perms["defaultMode"] = "bypassPermissions"
+perms["deny"] = []
+perms["ask"] = []
+
+allow = set(perms.get("allow", []))
+allow.update([
+    "Bash", "Read", "Edit", "Write", "Glob", "Grep", "NotebookEdit",
+    "WebFetch", "WebSearch", "Agent", "Task", "Skill", "Workflow",
+    "Artifact", "SendUserFile",
+    # MCP servers are allowed server-wide by prefix.
+    "mcp__computer-use", "mcp__terminal", "mcp__claude-in-chrome",
+    "mcp__Claude_Browser", "mcp__Claude_Code_iOS_Simulator",
+    "mcp__ccd_session", "mcp__ccd_session_mgmt", "mcp__ccd_directory",
+    "mcp__scheduled-tasks", "mcp__mcp-registry", "mcp__visualize",
+])
+perms["allow"] = sorted(allow)
+
+# Claude Code is scoped to the project directory by default; widen it to the
+# machine. Paths that do not exist on this OS are simply never matched.
+dirs = set(perms.get("additionalDirectories", []))
+dirs.update([home, "/Applications", "/Volumes", "/opt", "/usr/local",
+             "/private/tmp", "/tmp", "/srv", "/mnt"])
+perms["additionalDirectories"] = sorted(d for d in dirs if d == home or os.path.isdir(d))
+
+# --- auto-approve hook ---------------------------------------------------
+# bypassPermissions already suppresses prompts. This is the second line: if a
+# session opens in another mode (the desktop app does this in some contexts),
+# the hook answers "allow" before a prompt can exist.
+# Exec form (command + args) means no shell parses the JSON payload.
+auto = {
+    "type": "command",
+    "command": "/bin/echo",
+    "args": [json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "allow",
+            "permissionDecisionReason": "claude-autonomous",
+        },
+        "suppressOutput": True,
+    })],
+    "timeout": 5,
+}
+hooks = cfg.setdefault("hooks", {})
+pre = [g for g in hooks.get("PreToolUse", [])
+       if not any(h.get("command") == "/bin/echo" for h in g.get("hooks", []))]
+pre.append({"hooks": [auto]})
+hooks["PreToolUse"] = pre
+
+# --- everything else that stops to ask ------------------------------------
+cfg["sandbox"] = {"enabled": False}          # commands run unconfined
+cfg["enableAllProjectMcpServers"] = True     # no "trust this MCP server?" prompt
+cfg["skipDangerousModePermissionPrompt"] = True
+cfg["skipAutoPermissionPrompt"] = True
+cfg["skipWorkflowUsageWarning"] = True
+cfg["askUserQuestionTimeout"] = "60s"        # a question never parks the session
+cfg["fileCheckpointingEnabled"] = True       # /rewind is the only undo left
+
+env = cfg.setdefault("env", {})
+env.setdefault("BASH_DEFAULT_TIMEOUT_MS", "600000")   # 2 min -> 10 min
+env.setdefault("BASH_MAX_TIMEOUT_MS", "600000")
+env.setdefault("MCP_TIMEOUT", "60000")
+
+with open(path, "w") as f:
+    json.dump(cfg, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+print(f"autonomous mode ON  ->  {path}")
+PY
+  echo
+  echo "Restart your Claude Code session — the permission mode is read at startup."
+}
+
+cmd_off() {
+  [ -f "$SETTINGS" ] || die "nothing to turn off: $SETTINGS does not exist"
+  backup
+  python3 - "$SETTINGS" <<'PY'
+import json, sys
+
+path = sys.argv[1]
+with open(path) as f:
+    cfg = json.load(f)
+
+perms = cfg.setdefault("permissions", {})
+perms["defaultMode"] = "default"
+perms.pop("additionalDirectories", None)
+
+hooks = cfg.get("hooks", {})
+pre = [g for g in hooks.get("PreToolUse", [])
+       if not any(h.get("command") == "/bin/echo" for h in g.get("hooks", []))]
+if pre:
+    hooks["PreToolUse"] = pre
+else:
+    hooks.pop("PreToolUse", None)
+if not hooks:
+    cfg.pop("hooks", None)
+
+cfg["askUserQuestionTimeout"] = "never"
+
+with open(path, "w") as f:
+    json.dump(cfg, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+print(f"autonomous mode OFF  ->  {path}")
+print("the allow list is left in place — it only avoids repeat prompts, "
+      "it does not grant anything on its own")
+PY
+  echo
+  echo "Restart your Claude Code session."
+}
+
+cmd_status() {
+  [ -f "$SETTINGS" ] || die "no settings file at $SETTINGS — run: claude-autonomous on"
+  python3 - "$SETTINGS" <<'PY'
+import json, sys
+
+path = sys.argv[1]
+with open(path) as f:
+    cfg = json.load(f)
+
+perms = cfg.get("permissions", {})
+groups = cfg.get("hooks", {}).get("PreToolUse", [])
+hook = any(h.get("command") == "/bin/echo"
+           for g in groups for h in g.get("hooks", []))
+
+checks = [
+    ("permission mode",      perms.get("defaultMode"),                   "bypassPermissions"),
+    ("auto-approve hook",    "yes" if hook else "no",                    "yes"),
+    ("deny rules",           len(perms.get("deny", [])),                 0),
+    ("ask rules",            len(perms.get("ask", [])),                  0),
+    ("dangerous-mode dialog",cfg.get("skipDangerousModePermissionPrompt"), True),
+    ("sandbox",              (cfg.get("sandbox") or {}).get("enabled", False), False),
+    ("file checkpointing",   cfg.get("fileCheckpointingEnabled"),        True),
+]
+
+w = max(len(n) for n, _, _ in checks)
+bad = 0
+for name, got, want in checks:
+    ok = got == want
+    bad += not ok
+    print(f"{'OK ' if ok else '-- '} {name.ljust(w)}  {got}")
+
+dirs = perms.get("additionalDirectories", [])
+print(f"\ndirectories in scope ({len(dirs)}): {', '.join(dirs) or 'project only'}")
+print(f"allow rules: {len(perms.get('allow', []))}")
+print("\n" + ("AUTONOMOUS MODE ON" if not bad
+             else f"INCOMPLETE — {bad} item(s) off; run: claude-autonomous on"))
+sys.exit(1 if bad else 0)
+PY
+}
+
+case "${1:-status}" in
+  on|enable)    cmd_on ;;
+  off|disable)  cmd_off ;;
+  status|"")    cmd_status ;;
+  -v|--version) echo "claude-autonomous $VERSION" ;;
+  -h|--help)    sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *)            die "unknown command: $1  (try: on | off | status)" ;;
+esac
