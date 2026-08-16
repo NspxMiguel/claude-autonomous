@@ -21,7 +21,7 @@ vez de perguntar.
 curl -fsSL https://raw.githubusercontent.com/NspxMiguel/claude-autonomous/main/install.sh | bash
 ```
 
-**Windows** — PowerShell 7+, não precisa de administrador
+**Windows** — PowerShell 7+ (não o "Windows PowerShell"), sem administrador
 
 ```powershell
 irm https://raw.githubusercontent.com/NspxMiguel/claude-autonomous/main/install.ps1 | iex
@@ -38,21 +38,40 @@ cd claude-autonomous
 Depois **reinicie a sessão do Claude Code** — o modo de permissão é lido na
 abertura.
 
-### Suporte por sistema, sem enfeite
-
-| | Config on/off/status | `secret` + `run` | Como foi verificado |
-| --- | --- | --- | --- |
-| **macOS** | sim | Chaveiro | De ponta a ponta no 26.5, com chave real guardada e usada |
-| **Linux** | sim | `secret-tool` | Install, on/off/status e códigos de saída testados em container Debian 12. O `secret-tool` precisa de D-Bus de sessão e chaveiro destravado — máquina headless não tem, e o erro agora diz isso |
-| **Windows** | só instala | não tem | **Não testado.** O instalador grava a mesma config, mas o `bin/claude-autonomous` é script bash, então on/off/status/secret/run ainda não existem lá. Pra desfazer na mão: `permissions.defaultMode` de volta pra `"default"` |
-
-Precisa de `python3` no macOS e no Linux (é ele que faz o merge do JSON), e
-PowerShell 7+ no Windows.
-
 ```bash
 claude-autonomous status   # o que está valendo agora
 claude-autonomous doctor   # config + ferramentas + permissões do sistema
 claude-autonomous off      # desfaz tudo
+```
+
+### Suporte por sistema, e como cada linha foi verificada
+
+São duas implementações da mesma ferramenta: `bin/claude-autonomous` (bash) e
+`bin/claude-autonomous.ps1` (PowerShell). Gravam a mesma config e reconhecem o
+trabalho uma da outra — a bateria de testes verifica que o modo ligado por uma é
+enxergado pela outra.
+
+| | Estado | Segredos | Verificado |
+| --- | --- | --- | --- |
+| **macOS** | completo | Chaveiro | 39/39 na suite PowerShell + suite bash, no 26.5. Chave de API real guardada e usada contra endpoint ao vivo |
+| **Linux** | completo | `secret-tool` | 39/39 na suite PowerShell + suite bash, em container Debian 12 com D-Bus de sessão e chaveiro destravado |
+| **Windows** | completo | DPAPI | Tudo menos a chamada DPAPI em si: a suite verifica a forma do hook do Windows a partir de qualquer host. Ver abaixo |
+
+**O que "menos o DPAPI" quer dizer.** No Windows o segredo é cifrado com
+`ConvertFrom-SecureString`, que amarra o valor à conta Windows do usuário — não
+existe arquivo de chave pra alguém copiar. Essa chamada só roda no Windows, então
+é a única coisa aqui sem execução de teste. Todo o resto do caminho Windows —
+parsing de argumento, merge do JSON, on/off/status/doctor, a forma
+`cmd.exe /c echo` do hook — é exercitado pela mesma suite que passa no macOS e no
+Linux.
+
+Requisitos: `python3` pro script bash, PowerShell 7+ pro PowerShell. No Windows,
+"Windows PowerShell" 5.1 não serve, e o instalador avisa antes de tocar em
+qualquer arquivo.
+
+```bash
+pwsh tests/test.ps1                                   # qualquer plataforma
+dbus-run-session -- tests/linux-in-container.sh --with-pwsh   # em container Linux
 ```
 
 ---

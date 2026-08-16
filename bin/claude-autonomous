@@ -9,7 +9,7 @@
 # overwrite, and the previous file is copied to ~/.claude/backups/ first.
 set -euo pipefail
 
-VERSION="1.2.1"
+VERSION="1.3.0"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 SETTINGS="$CLAUDE_DIR/settings.json"
 BACKUPS="$CLAUDE_DIR/backups"
@@ -32,6 +32,14 @@ cmd_on() {
   backup
   python3 - "$SETTINGS" <<'PY'
 import json, os, sys
+
+MARKER = "claude-autonomous"
+
+def is_ours(group):
+    """Our auto-approve hook, however this platform spells `echo`."""
+    return any(MARKER in "".join(h.get("args", []) or []) or
+               MARKER in (h.get("command") or "")
+               for h in group.get("hooks", []))
 
 path = sys.argv[1]
 cfg = {}
@@ -89,8 +97,7 @@ auto = {
     "timeout": 5,
 }
 hooks = cfg.setdefault("hooks", {})
-pre = [g for g in hooks.get("PreToolUse", [])
-       if not any(h.get("command") == "/bin/echo" for h in g.get("hooks", []))]
+pre = [g for g in hooks.get("PreToolUse", []) if not is_ours(g)]
 pre.append({"hooks": [auto]})
 hooks["PreToolUse"] = pre
 
@@ -139,6 +146,14 @@ cmd_off() {
   python3 - "$SETTINGS" <<'PY'
 import json, sys
 
+MARKER = "claude-autonomous"
+
+def is_ours(group):
+    """Our auto-approve hook, however this platform spells `echo`."""
+    return any(MARKER in "".join(h.get("args", []) or []) or
+               MARKER in (h.get("command") or "")
+               for h in group.get("hooks", []))
+
 path = sys.argv[1]
 with open(path) as f:
     cfg = json.load(f)
@@ -148,8 +163,7 @@ perms["defaultMode"] = "default"
 perms.pop("additionalDirectories", None)
 
 hooks = cfg.get("hooks", {})
-pre = [g for g in hooks.get("PreToolUse", [])
-       if not any(h.get("command") == "/bin/echo" for h in g.get("hooks", []))]
+pre = [g for g in hooks.get("PreToolUse", []) if not is_ours(g)]
 if pre:
     hooks["PreToolUse"] = pre
 else:
@@ -180,14 +194,21 @@ cmd_status() {
   python3 - "$SETTINGS" <<'PY'
 import json, sys
 
+MARKER = "claude-autonomous"
+
+def is_ours(group):
+    """Our auto-approve hook, however this platform spells `echo`."""
+    return any(MARKER in "".join(h.get("args", []) or []) or
+               MARKER in (h.get("command") or "")
+               for h in group.get("hooks", []))
+
 path = sys.argv[1]
 with open(path) as f:
     cfg = json.load(f)
 
 perms = cfg.get("permissions", {})
 groups = cfg.get("hooks", {}).get("PreToolUse", [])
-hook = any(h.get("command") == "/bin/echo"
-           for g in groups for h in g.get("hooks", []))
+hook = any(is_ours(g) for g in groups)
 
 checks = [
     ("permission mode",      perms.get("defaultMode"),                   "bypassPermissions"),
@@ -332,8 +353,15 @@ secret_list() { # names only, never values
       security dump-keychain 2>/dev/null |
         sed -n "s/.*\"svce\"<blob>=\"$SECRET_PREFIX:\([^\"]*\)\".*/\1/p" | sort -u
       ;;
-    libsecret) secret-tool search service "$SECRET_PREFIX" 2>&1 |
-                 sed -n 's/^ *key = //p' | sort -u ;;
+    libsecret)
+      # Only the attribute.key lines. secret-tool's output also contains a
+      # `secret = ...` line with the value itself, so this must never widen
+      # into a loose match.
+      # secret-tool search writes its results to stderr, so 2>&1 is required
+      # rather than optional. Extract only attribute.key: the same stream also
+      # carries a `secret = ...` line holding the value itself.
+      secret-tool search --all service "$SECRET_PREFIX" 2>&1 |
+        sed -n 's/^attribute\.key = //p' | sort -u ;;
     *) return 1 ;;
   esac
 }

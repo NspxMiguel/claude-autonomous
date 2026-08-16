@@ -20,7 +20,7 @@ and a skill that holds the other half of the deal — acting instead of asking.
 curl -fsSL https://raw.githubusercontent.com/NspxMiguel/claude-autonomous/main/install.sh | bash
 ```
 
-**Windows** — PowerShell 7+, no administrator rights needed
+**Windows** — PowerShell 7+ (not "Windows PowerShell"), no administrator rights
 
 ```powershell
 irm https://raw.githubusercontent.com/NspxMiguel/claude-autonomous/main/install.ps1 | iex
@@ -37,21 +37,39 @@ cd claude-autonomous
 Then **restart your Claude Code session** — the permission mode is read at
 startup.
 
-### Platform support, honestly
-
-| | Settings on/off/status | `secret` + `run` | Verified how |
-| --- | --- | --- | --- |
-| **macOS** | yes | Keychain | End to end on 26.5, including a real key stored and used |
-| **Linux** | yes | `secret-tool` | Install, on/off/status and exit codes tested in a Debian 12 container. `secret-tool` needs a session D-Bus and an unlocked keyring — headless boxes will not have one, and the error now says so |
-| **Windows** | install only | not available | **Untested.** The installer writes the same settings, but `bin/claude-autonomous` is a bash script, so on/off/status/secret/run do not exist there yet. Undo by hand: set `permissions.defaultMode` back to `"default"` |
-
-Requires `python3` on macOS and Linux (it does the JSON merge), and PowerShell 7+
-on Windows.
-
 ```bash
 claude-autonomous status   # what is actually set right now
 claude-autonomous doctor   # settings + toolchain + OS permissions
 claude-autonomous off      # put everything back
+```
+
+### Platform support, and how each row was verified
+
+There are two implementations of the same tool: `bin/claude-autonomous` (bash)
+and `bin/claude-autonomous.ps1` (PowerShell). They write the same settings and
+recognise each other's work — the test suite asserts that a mode toggled by one
+is seen by the other.
+
+| | Status | Secrets | Verified |
+| --- | --- | --- | --- |
+| **macOS** | full | Keychain | 39/39 PowerShell suite + bash suite, on 26.5. A real API key stored and used against a live endpoint |
+| **Linux** | full | `secret-tool` | 39/39 PowerShell suite + bash suite, in a Debian 12 container with a session D-Bus and unlocked keyring |
+| **Windows** | full | DPAPI | Everything except the DPAPI call itself: the suite asserts the Windows hook shape from any host. See below |
+
+**What "except DPAPI" means.** Secrets on Windows are encrypted with
+`ConvertFrom-SecureString`, which ties them to your Windows user account — no
+key file exists to copy elsewhere. That call only runs on Windows, so it is the
+one thing here not covered by a test run. Everything else on the Windows path —
+argument parsing, the JSON merge, on/off/status/doctor, the `cmd.exe /c echo`
+hook shape — is exercised by the same suite that passes on macOS and Linux.
+
+Requirements: `python3` for the bash script, PowerShell 7+ for the PowerShell
+one. On Windows, "Windows PowerShell" 5.1 is not enough and the installer says
+so before touching any file.
+
+```bash
+pwsh tests/test.ps1                                   # any platform
+dbus-run-session -- tests/linux-in-container.sh --with-pwsh   # in a Linux container
 ```
 
 ---
