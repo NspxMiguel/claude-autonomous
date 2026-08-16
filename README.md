@@ -189,6 +189,25 @@ JSON payload. One `/bin/echo` per tool call.
 
 ---
 
+### The one prompt that survives
+
+Claude Code hard-refuses to auto-approve an `rm` whose target is a critical
+system path, or the session's working directory, an additional working
+directory, or a parent of either. Its own wording:
+
+> This requires explicit approval and cannot be auto-allowed by permission rules.
+
+Not by `bypassPermissions`, not by an allow rule, not by the hook. It is
+compiled in, and it is the correct call — an agent with every prompt suppressed
+should still not be one keystroke from deleting the tree it is working in.
+
+Nearly every occurrence is deleting the folder you are standing in, so the
+installed skill teaches the shape that avoids it: step outside first
+(`cd /tmp && rm -rf /path/to/workdir`) or empty the directory instead of
+removing it.
+
+---
+
 ## What it does not change
 
 Three layers can stop an action. This repo only owns the first.

@@ -9,7 +9,7 @@
 # overwrite, and the previous file is copied to ~/.claude/backups/ first.
 set -euo pipefail
 
-VERSION="1.3.0"
+VERSION="1.3.1"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 SETTINGS="$CLAUDE_DIR/settings.json"
 BACKUPS="$CLAUDE_DIR/backups"

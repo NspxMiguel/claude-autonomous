@@ -28,7 +28,7 @@ if ($argv.Count -gt 1) { $Rest = @($argv[1..($argv.Count - 1)]) }
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$script:VERSION = '1.3.0'
+$script:VERSION = '1.3.1'
 $script:MARKER  = 'claude-autonomous'
 
 $script:ClaudeDir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR }
