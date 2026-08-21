@@ -116,6 +116,37 @@ branches do Windows são renderizadas e verificadas a partir do macOS.
 
 ---
 
+## [ENTREGUE] Proton Pass como fonte de credencial — v1.6.0
+
+**Palavras dele:** *"ve se o proton da pra puxar, q se nao eu coloco as senhas la
+e vc usa de la, deve ter alguma forma de deixar sync entre apple senhas e proton
+passwords"*
+
+**Sim, dá — e muito melhor que o app Senhas.** O Proton Pass tem CLI oficial
+(`pass-cli`, Rust, binário pronto, 2.3.2). Ao contrário do app Senhas, é feito
+pra ler sem interação: ele autentica uma vez (login ou Personal Access Token,
+ação dele) e daí `pass-cli run -- comando` injeta os segredos do cofre,
+mascarados na saída.
+
+**Não precisa de sync.** Ele põe as chaves no Proton e eu leio direto de lá — o
+sync Apple↔Proton que ele cogitou fica desnecessário.
+
+**Melhor ainda, o modelo de agente:** `pass-cli agent create claude
+--expiration 3m --vault <nome>` dá um escopo de cofre, com expiração e
+auditoria (`agent monitor`). A sessão de agente injeta segredo no comando mas é
+**proibida** de `--show-secrets` — o valor não cai no transcript (importa com o
+`autoUploadSessions` ligado). É garantia mais forte que copiar pro chaveiro,
+então a orientação é ler do Proton ao vivo em vez de duplicar.
+
+- `doctor` sonda `pass-cli info` junto de gh/vercel/supabase/firebase;
+- `install.sh` baixa o binário oficial (best-effort, não falha o install);
+- skill e os dois READMEs documentam.
+
+**Falta o passo dele (uma vez):** `pass-cli login` (ou criar um PAT). Não me
+autentico como ele — igual `gh auth login`. Depois disso eu uso à vontade.
+
+---
+
 ## [ENTREGUE — parcial pelo macOS] Puxar do app Senhas, automático + manual — v1.5.0
 
 **Palavras dele:** *"ve se n da pra puxar minhas senhas do apple senhas uai,
@@ -187,12 +218,15 @@ copiar do painel, e só no fim devolver alguma coisa pra ele.
 
 ---
 
-## [DELE] Duas coisas
+## [DELE] Três coisas
 
-1. **Permissões do macOS** — Gravação de Tela, Acessibilidade, Automação e
+1. **Login no Proton Pass** — `pass-cli login` (ou um Personal Access Token), uma
+   vez. Depois eu leio o cofre direto. Idealmente ele cria um agente pra mim:
+   `pass-cli agent create claude --expiration 3m --vault <nome>`;
+2. **Permissões do macOS** — Gravação de Tela, Acessibilidade, Automação e
    Acesso Total ao Disco. O `doctor` detectou que falta Acesso Total ao Disco.
    Com Acesso Total ao Disco o `harvest` alcança mais lugares;
-2. **Sete chaves velhas no Groq** — `ddddddd`, `ddddddddddddddddddddd`,
+3. **Sete chaves velhas no Groq** — `ddddddd`, `ddddddddddddddddddddd`,
    `Fjfjdjf`, duas `key-miguel`, `Agenda`, `bot mine`, `Home assist`. Todas com
    0 chamadas. Apagar é destrutivo: ele diz quais e eu apago.
 
