@@ -76,6 +76,38 @@ dbus-run-session -- tests/linux-in-container.sh --with-pwsh   # em container Lin
 
 ---
 
+## Colocar chave sem ninguém digitar
+
+O conselho de sempre é "guarde sua chave primeiro". Está de trás pra frente — a
+chave quase sempre já está na máquina.
+
+```bash
+claude-autonomous harvest            # o que existe: nomes, tamanhos, caminhos
+claude-autonomous harvest --apply    # move pro chaveiro
+```
+
+O `harvest` varre `.env` nas suas pastas de projeto, perfis de shell e os
+arquivos de config que as CLIs escrevem, guarda só o que realmente parece
+credencial, e importa. Ele imprime nome e contagem de bytes, nunca valor, e
+descarta identificador público — `AUTH_DOMAIN` é hostname, `CLIENT_ID` é
+público por definição. Tirar esses valores de arquivo em texto puro e pôr no
+chaveiro do sistema já é ganho de segurança por si só.
+
+Para chave que ainda não existe em lugar nenhum, dois caminhos que continuam
+sem exigir decorar comando:
+
+```bash
+pbpaste | claude-autonomous secret import GROQ_API_KEY   # do botão copiar do painel
+claude-autonomous vault                                  # página local: cola uma, ou um .env inteiro
+```
+
+O `vault` escuta só em loopback, exige token por execução, recusa `Host`
+forjado e se fecha após 15 minutos parado. Ele existe pra entregar uma chave
+virar um colar em vez de um comando decorado — não pra alguma coisa entrar em
+conta por você.
+
+---
+
 ## Credencial, sem entregar a credencial
 
 O pedido por trás de "deixa ele pegar a API e fazer tudo" é legítimo, e não exige

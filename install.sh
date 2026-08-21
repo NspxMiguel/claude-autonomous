@@ -41,6 +41,9 @@ mkdir -p "$BIN_DIR" "$SKILL_DIR"
 say "-> installing the command in $BIN_DIR"
 fetch bin/claude-autonomous "$BIN_DIR/claude-autonomous"
 chmod +x "$BIN_DIR/claude-autonomous"
+# The helpers must sit next to the CLI: it locates them relative to itself.
+fetch bin/harvest.py "$BIN_DIR/harvest.py"
+fetch bin/vault.py   "$BIN_DIR/vault.py"
 
 say "-> installing the skill in $SKILL_DIR"
 fetch skill/SKILL.md "$SKILL_DIR/SKILL.md"

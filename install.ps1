@@ -43,6 +43,10 @@ function Fetch([string] $RelPath, [string] $Dest) {
 $cli = Join-Path $BinDir 'claude-autonomous.ps1'
 Write-Host "-> installing the command in $BinDir"
 Fetch 'bin/claude-autonomous.ps1' $cli
+# harvest and vault are Python and shared across platforms; the CLI finds them
+# next to itself.
+Fetch 'bin/harvest.py' (Join-Path $BinDir 'harvest.py')
+Fetch 'bin/vault.py'   (Join-Path $BinDir 'vault.py')
 
 if ($IsWindows) {
     # A .cmd shim so `claude-autonomous` works from cmd.exe and from anything

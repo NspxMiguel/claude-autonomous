@@ -68,10 +68,25 @@ is not evidence; the error message is.
 "Grab the API key and do the thing" is nearly always doable — the trick is that
 the key goes to the command, not through the conversation.
 
-**First, try the CLI that is already signed in.** `gh`, `vercel`, `supabase`,
+**Order of attempts when a task needs a credential. Do not skip to the end.**
+
+**1. Harvest what already exists.** Keys are usually already on the machine, in
+a `.env`, a shell profile, or a config a CLI wrote. Run this before concluding
+anything is missing:
+
+```bash
+claude-autonomous harvest            # what is there, names and lengths only
+claude-autonomous harvest --apply    # move it into the keychain
+```
+
+It reports names, byte counts and file paths — never values. Running it is
+also a small security win: it moves secrets from plaintext files into the OS
+keychain.
+
+**2. The CLI that is already signed in.** `gh`, `vercel`, `supabase`,
 `firebase`, `aws`, `docker` all carry their own auth. Nothing needs to be read.
 
-**When a command genuinely needs a value in its environment:**
+**3. When a command genuinely needs a value in its environment:**
 
 ```bash
 claude-autonomous secret list                    # what exists, names only
@@ -82,7 +97,7 @@ claude-autonomous run A,B -- python job.py       # several at once
 The value is exported into the child process and never enters argv, stdout, or
 this transcript. Write the script that uses `$STRIPE_KEY`; run it through `run`.
 
-**When the key is on screen in a dashboard they are already signed in to** —
+**4. When the key is on screen in a dashboard they are already signed in to** —
 Groq, OpenAI, Stripe, a cloud console — take it from there yourself. Click the
 page's own copy button, then route the clipboard straight into the keychain:
 
@@ -96,9 +111,14 @@ in a transcript that may sync to the cloud. `import` reports the character count
 and nothing else. Prefer this over reading the key off the page — a screenshot
 or page-text read puts the secret in the conversation permanently.
 
-**What is actually left for them:** signing in to the dashboard. That is one
-login they were doing anyway, not a per-task tax. Never ask them to paste a key
-into the chat, and never read a stored key back out into a message.
+**5. Only then, hand it back** — and only the part that is genuinely theirs.
+`claude-autonomous vault` opens a local page where they paste a key, or a whole
+`.env`, straight into the keychain; it beats making them recall a command.
+
+**What is actually left for them:** signing in to a service that has no key
+anywhere on the machine yet. Never ask them to paste a key into the chat, and
+never read a stored key back out into a message. And never ask before running
+step 1 — harvesting is free and answers the question most of the time.
 
 ## The one prompt no config removes, and how to stop causing it
 

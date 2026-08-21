@@ -74,6 +74,38 @@ dbus-run-session -- tests/linux-in-container.sh --with-pwsh   # in a Linux conta
 
 ---
 
+## Getting keys in without anyone typing
+
+The usual advice is "store your key first". That is backwards — the key is
+almost always already on the machine.
+
+```bash
+claude-autonomous harvest            # what is there: names, lengths, file paths
+claude-autonomous harvest --apply    # move it into the keychain
+```
+
+`harvest` walks `.env` files under your project directories, shell profiles,
+and the config files CLIs write, keeps only what actually looks like a
+credential, and imports it. It prints names and byte counts, never values, and
+skips public identifiers — `AUTH_DOMAIN` is a hostname, `CLIENT_ID` is public
+by design. Moving those values out of plaintext files into the OS keychain is a
+security improvement on its own.
+
+For a key that exists nowhere yet, there are two paths that still avoid typing
+a command:
+
+```bash
+pbpaste | claude-autonomous secret import GROQ_API_KEY   # from a dashboard's copy button
+claude-autonomous vault                                  # a local page: paste one, or a whole .env
+```
+
+`vault` binds loopback only, requires a per-run token, rejects a forged `Host`
+header, and closes itself after 15 idle minutes. It exists so that handing over
+a key is a paste rather than a remembered command — not so that anything can
+sign in on your behalf.
+
+---
+
 ## Credentials, without handing them over
 
 The request behind "let it grab the API key and do everything" is real, and it

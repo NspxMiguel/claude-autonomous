@@ -28,7 +28,7 @@ if ($argv.Count -gt 1) { $Rest = @($argv[1..($argv.Count - 1)]) }
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$script:VERSION = '1.3.1'
+$script:VERSION = '1.4.0'
 $script:MARKER  = 'claude-autonomous'
 
 $script:ClaudeDir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR }
@@ -426,6 +426,20 @@ function Invoke-Run([string[]] $Arguments) {
     exit $LASTEXITCODE
 }
 
+# harvest and vault are one Python implementation shared by both CLIs, so a
+# machine managed from either script behaves identically.
+function Invoke-Helper([string] $Script, [string[]] $Arguments) {
+    $here = Split-Path -Parent $PSCommandPath
+    $path = Join-Path $here $Script
+    if (-not (Test-Path $path)) { Die "$Script is not next to the CLI (expected $path)" }
+    $py = Get-Command python3 -ErrorAction SilentlyContinue
+    if (-not $py) { $py = Get-Command python -ErrorAction SilentlyContinue }
+    if (-not $py) { Die "$Script needs Python 3 on PATH" }
+    $env:CLAUDE_AUTONOMOUS_CLI = $PSCommandPath
+    & $py.Source $path @Arguments
+    exit $LASTEXITCODE
+}
+
 function Invoke-Doctor {
     Write-Host 'toolchain'
     foreach ($t in @('python3','git','gh','curl','node','claude','pwsh')) {
@@ -478,6 +492,8 @@ claude-autonomous — turn permission prompts off in Claude Code, and back on.
   secret set NAME                 store one, typed in, hidden
   secret import NAME              store one from stdin, never echoed
   secret rm NAME                  remove one
+  harvest [--apply]               find keys already on this machine, store them
+  vault                           open a local page to paste keys into
   run NAME[,NAME] -- cmd ...      run cmd with those secrets in its environment
 
 `run` is the point: the command receives the credential, the agent that wrote
@@ -497,6 +513,8 @@ switch ($Command) {
     { $_ -in 'off','disable' } { Invoke-Off }
     { $_ -in 'status','' }     { Invoke-Status }
     'doctor'                   { Invoke-Doctor }
+    'harvest'                  { Invoke-Helper 'harvest.py' $Rest }
+    'vault'                    { Invoke-Helper 'vault.py'   $Rest }
     { $_ -in 'secret','secrets' } { Invoke-Secret $Rest }
     'run'                      { Invoke-Run $Rest }
     { $_ -in '-v','--version' }{ Write-Host "claude-autonomous $($script:VERSION)" }
