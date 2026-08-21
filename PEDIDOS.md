@@ -141,6 +141,29 @@ o `request` é o recurso pra quando eu realmente preciso dele.
 
 ---
 
+## [BLOQUEADO — plano do Proton] CLI do Proton exige plano pago
+
+**16/08/2026.** Ele logou no app/web do Proton e mandou o print "successfully
+signed in". Mas o `pass-cli login` (sessão separada do CLI) autenticou e o
+Proton respondeu **"Your account is not yet allowed to use our CLI"** + force
+logout.
+
+**Motivo confirmado no dashboard dele:** plano **Proton Free**. O CLI do Proton
+Pass é liberado só em plano pago — Pass Plus (BRL 10,49–17,49/mês), Proton
+Unlimited (BRL 34,99/mês) ou Business. Entitlement do servidor deles; não passo
+por cima.
+
+**Decisão é dele (gastar dinheiro):** eu não faço upgrade. Se ele assinar, o
+`pass-cli login` passa a funcionar e o `request`/`vault` já grava no Proton
+sozinho — o dual-write degrada pro chaveiro hoje e liga o Proton no dia em que a
+sessão existir, sem eu mexer em nada.
+
+**Enquanto isso, nada trava:** `harvest` (achou 3 chaves dele), chaveiro +
+`run`, e o `request`/`vault` salvando no chaveiro. Só a réplica no Proton fica
+pendente do plano.
+
+---
+
 ## [ENTREGUE] Proton Pass como fonte de credencial — v1.6.0
 
 **Palavras dele:** *"ve se o proton da pra puxar, q se nao eu coloco as senhas la
