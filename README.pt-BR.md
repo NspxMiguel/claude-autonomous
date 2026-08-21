@@ -106,6 +106,18 @@ forjado e se fecha após 15 minutos parado. Ele existe pra entregar uma chave
 virar um colar em vez de um comando decorado — não pra alguma coisa entrar em
 conta por você.
 
+**De um gerenciador de senhas.** O macOS não deixa ler em massa o cofre do app
+Senhas (precisa do app + Touch ID por item, e não há CLI de export). O caminho
+manual é o próprio Arquivo -> Exportar Todas as Senhas do app, e então:
+
+```bash
+claude-autonomous import-csv ~/Downloads/Senhas.csv --apply --rm-after
+```
+
+Por padrão pega só o que tem cara de token de API e ignora login de site — senha
+de site não serve pro `run`, então importar o cofre inteiro só duplica. `--sites`
+ou `--all` incluem; `--rm-after` sobrescreve e apaga o CSV em texto puro.
+
 ---
 
 ## Credencial, sem entregar a credencial

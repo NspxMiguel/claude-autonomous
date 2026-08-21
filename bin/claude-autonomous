@@ -9,7 +9,7 @@
 # overwrite, and the previous file is copied to ~/.claude/backups/ first.
 set -euo pipefail
 
-VERSION="1.4.0"
+VERSION="1.5.0"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 SETTINGS="$CLAUDE_DIR/settings.json"
 BACKUPS="$CLAUDE_DIR/backups"
@@ -426,6 +426,15 @@ cmd_run() { # claude-autonomous run NAME[,NAME...] -- command args...
 # doctor — the layer no settings file reaches
 # --------------------------------------------------------------------------
 
+cmd_import_csv() {
+  # The manual half of pulling in credentials: import a CSV the user exported
+  # from a password manager (Apple Passwords: File -> Export All Passwords).
+  local here; here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  [ -f "$here/import_csv.py" ] || die "import_csv.py is not next to the CLI"
+  CLAUDE_AUTONOMOUS_CLI="$here/$(basename "${BASH_SOURCE[0]}")" \
+    python3 "$here/import_csv.py" "$@"
+}
+
 cmd_harvest() {
   # Credentials usually already exist on the machine. This finds them and puts
   # them in the keychain, so nobody has to type or paste anything.
@@ -517,6 +526,7 @@ claude-autonomous — turn permission prompts off in Claude Code, and back on.
   secret import NAME              store one from stdin, never echoed
   secret rm NAME                  remove one
   harvest [--apply]               find keys already on this machine, store them
+  import-csv FILE [--apply]       import a password-manager CSV export
   vault                           open a local page to paste keys into
   run NAME[,NAME] -- cmd ...      run cmd with those secrets in its environment
 
@@ -536,6 +546,7 @@ case "${1:-status}" in
   doctor)       cmd_doctor ;;
   vault)        shift; cmd_vault "$@" ;;
   harvest)      shift; cmd_harvest "$@" ;;
+  import-csv)   shift; cmd_import_csv "$@" ;;
   secret|secrets) shift; cmd_secret "$@" ;;
   run)          shift; cmd_run "$@" ;;
   -v|--version) echo "claude-autonomous $VERSION" ;;

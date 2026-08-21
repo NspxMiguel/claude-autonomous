@@ -104,6 +104,18 @@ header, and closes itself after 15 idle minutes. It exists so that handing over
 a key is a paste rather than a remembered command — not so that anything can
 sign in on your behalf.
 
+**From a password manager.** macOS blocks bulk-reading the Apple Passwords
+store (it needs the app plus Touch ID per item, and there is no export CLI). The
+manual path is the app's own File -> Export All Passwords, then:
+
+```bash
+claude-autonomous import-csv ~/Downloads/Passwords.csv --apply --rm-after
+```
+
+It defaults to API-token-shaped entries and skips website logins — a site
+password cannot drive `run`, so importing the whole vault only duplicates it.
+`--sites` or `--all` widen it; `--rm-after` shreds the plaintext CSV.
+
 ---
 
 ## Credentials, without handing them over

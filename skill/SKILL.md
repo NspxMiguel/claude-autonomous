@@ -111,6 +111,23 @@ in a transcript that may sync to the cloud. `import` reports the character count
 and nothing else. Prefer this over reading the key off the page — a screenshot
 or page-text read puts the secret in the conversation permanently.
 
+**Pulling from a password manager (Apple Passwords, 1Password, Bitwarden).**
+macOS will not let anything bulk-read the Apple Passwords store — that vault
+needs the app plus Touch ID per item, and there is no export CLI. Confirmed by
+`security find-internet-password` returning nothing for a site the user has
+saved. So this half is manual by necessity: the user runs the app's own
+File -> Export All Passwords (their Touch ID), and then
+
+```bash
+claude-autonomous import-csv ~/Downloads/Passwords.csv          # preview
+claude-autonomous import-csv ~/Downloads/Passwords.csv --apply --rm-after
+```
+
+By default it imports only API-token-shaped entries and skips website logins,
+because a site password cannot drive `run` and importing the whole vault just
+duplicates it. `--sites`/`--all` widen it if the user asks. `--rm-after` shreds
+the plaintext CSV; if not passed, tell them the CSV is still on disk.
+
 **5. Only then, hand it back** — and only the part that is genuinely theirs.
 `claude-autonomous vault` opens a local page where they paste a key, or a whole
 `.env`, straight into the keychain; it beats making them recall a command.

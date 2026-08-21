@@ -28,7 +28,7 @@ if ($argv.Count -gt 1) { $Rest = @($argv[1..($argv.Count - 1)]) }
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$script:VERSION = '1.4.0'
+$script:VERSION = '1.5.0'
 $script:MARKER  = 'claude-autonomous'
 
 $script:ClaudeDir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR }
@@ -493,6 +493,7 @@ claude-autonomous — turn permission prompts off in Claude Code, and back on.
   secret import NAME              store one from stdin, never echoed
   secret rm NAME                  remove one
   harvest [--apply]               find keys already on this machine, store them
+  import-csv FILE [--apply]       import a password-manager CSV export
   vault                           open a local page to paste keys into
   run NAME[,NAME] -- cmd ...      run cmd with those secrets in its environment
 
@@ -514,6 +515,7 @@ switch ($Command) {
     { $_ -in 'status','' }     { Invoke-Status }
     'doctor'                   { Invoke-Doctor }
     'harvest'                  { Invoke-Helper 'harvest.py' $Rest }
+    'import-csv'               { Invoke-Helper 'import_csv.py' $Rest }
     'vault'                    { Invoke-Helper 'vault.py'   $Rest }
     { $_ -in 'secret','secrets' } { Invoke-Secret $Rest }
     'run'                      { Invoke-Run $Rest }
