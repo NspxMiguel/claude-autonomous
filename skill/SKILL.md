@@ -128,6 +128,14 @@ value cannot be dumped into this transcript, and everything it touches lands in
 `pass-cli agent monitor`. When a Proton session or agent exists, prefer reading
 from it live over copying anything into the keychain — no duplication, no drift.
 
+**There is no live Apple ↔ Proton sync, and none can be built.** The Apple
+store is closed both ways — no CLI reads it (app + Touch ID per item) and CLI
+writes land in the legacy login keychain the app ignores. Proton is fully
+scriptable. So the only automatable move is a one-way, point-in-time copy from
+an Apple export into Proton: `claude-autonomous proton-seed export.csv --vault X
+--apply`. Do not promise a mirror. The right advice is to keep Proton as the
+single vault read live, and Apple as device autofill.
+
 **Pulling from a password manager (Apple Passwords, 1Password, Bitwarden).**
 macOS will not let anything bulk-read the Apple Passwords store — that vault
 needs the app plus Touch ID per item, and there is no export CLI. Confirmed by

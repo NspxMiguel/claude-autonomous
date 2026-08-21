@@ -9,7 +9,7 @@
 # overwrite, and the previous file is copied to ~/.claude/backups/ first.
 set -euo pipefail
 
-VERSION="1.6.0"
+VERSION="1.7.0"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 SETTINGS="$CLAUDE_DIR/settings.json"
 BACKUPS="$CLAUDE_DIR/backups"
@@ -426,6 +426,15 @@ cmd_run() { # claude-autonomous run NAME[,NAME...] -- command args...
 # doctor — the layer no settings file reaches
 # --------------------------------------------------------------------------
 
+cmd_proton_seed() {
+  # The one automatable Apple->Proton direction: seed a Proton vault from a CSV
+  # the user exported. Not a sync — a point-in-time copy.
+  local here; here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  [ -f "$here/csv_to_proton.py" ] || die "csv_to_proton.py is not next to the CLI"
+  PASS_CLI="$(command -v pass-cli || echo pass-cli)" \
+    python3 "$here/csv_to_proton.py" "$@"
+}
+
 cmd_import_csv() {
   # The manual half of pulling in credentials: import a CSV the user exported
   # from a password manager (Apple Passwords: File -> Export All Passwords).
@@ -528,6 +537,7 @@ claude-autonomous — turn permission prompts off in Claude Code, and back on.
   secret rm NAME                  remove one
   harvest [--apply]               find keys already on this machine, store them
   import-csv FILE [--apply]       import a password-manager CSV export
+  proton-seed FILE [--apply]      copy a CSV export into a Proton Pass vault
   vault                           open a local page to paste keys into
   run NAME[,NAME] -- cmd ...      run cmd with those secrets in its environment
 
@@ -548,6 +558,7 @@ case "${1:-status}" in
   vault)        shift; cmd_vault "$@" ;;
   harvest)      shift; cmd_harvest "$@" ;;
   import-csv)   shift; cmd_import_csv "$@" ;;
+  proton-seed)  shift; cmd_proton_seed "$@" ;;
   secret|secrets) shift; cmd_secret "$@" ;;
   run)          shift; cmd_run "$@" ;;
   -v|--version) echo "claude-autonomous $VERSION" ;;

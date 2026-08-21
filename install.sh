@@ -45,6 +45,7 @@ chmod +x "$BIN_DIR/claude-autonomous"
 fetch bin/harvest.py "$BIN_DIR/harvest.py"
 fetch bin/vault.py   "$BIN_DIR/vault.py"
 fetch bin/import_csv.py "$BIN_DIR/import_csv.py"
+fetch bin/csv_to_proton.py "$BIN_DIR/csv_to_proton.py"
 
 say "-> installing the skill in $SKILL_DIR"
 fetch skill/SKILL.md "$SKILL_DIR/SKILL.md"

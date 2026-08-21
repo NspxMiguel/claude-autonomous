@@ -48,6 +48,7 @@ Fetch 'bin/claude-autonomous.ps1' $cli
 Fetch 'bin/harvest.py' (Join-Path $BinDir 'harvest.py')
 Fetch 'bin/vault.py'   (Join-Path $BinDir 'vault.py')
 Fetch 'bin/import_csv.py' (Join-Path $BinDir 'import_csv.py')
+Fetch 'bin/csv_to_proton.py' (Join-Path $BinDir 'csv_to_proton.py')
 
 if ($IsWindows) {
     # A .cmd shim so `claude-autonomous` works from cmd.exe and from anything

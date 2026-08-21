@@ -76,6 +76,34 @@ dbus-run-session -- tests/linux-in-container.sh --with-pwsh   # em container Lin
 
 ---
 
+## Sync Apple ↔ Proton nos dois sentidos: não dá
+
+Não existe sync ao vivo e bidirecional entre o app Senhas e o Proton Pass, e não
+dá pra construir. O cofre do app Senhas é fechado nas duas pontas:
+
+- **Ler** — os itens ficam num keychain de proteção de dados que CLI nenhuma
+  enumera; cada leitura exige o app + Touch ID. (O `security` não devolve nada
+  pra um site que você tem salvo.)
+- **Escrever** — o `security` só grava no login keychain antigo, que o app
+  Senhas não lê, então nada escrito por CLI aparece no app.
+
+Qualquer envolvimento do Apple precisa da interface do app. O Proton, ao
+contrário, é todo scriptável pelo `pass-cli`. Sobra exatamente um sentido
+automatizável, e é cópia num instante, não sync:
+
+```bash
+# app Senhas -> Arquivo > Exportar Todas as Senhas (Touch ID) -> um CSV, e então:
+claude-autonomous proton-seed ~/Downloads/Senhas.csv --vault Dev --apply
+```
+
+As senhas vão como JSON pro `pass-cli item create`, nunca no `argv`. Pro
+caminho inverso, exporta do Proton e importa esse CSV no app Senhas na mão.
+
+A resposta prática: pare de tentar espelhar os dois. Deixe o Proton como o cofre
+único que a ferramenta lê ao vivo, e o app Senhas como o autofill do aparelho.
+
+---
+
 ## Colocar chave sem ninguém digitar
 
 O conselho de sempre é "guarde sua chave primeiro". Está de trás pra frente — a

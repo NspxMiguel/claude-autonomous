@@ -74,6 +74,36 @@ dbus-run-session -- tests/linux-in-container.sh --with-pwsh   # in a Linux conta
 
 ---
 
+## Two-way Apple ↔ Proton sync: not possible
+
+There is no live, two-way sync between Apple Passwords and Proton Pass, and one
+cannot be built. The Apple Passwords store is closed on both ends:
+
+- **Read** — its items live in a data-protection keychain that no CLI can
+  enumerate; each read needs the app plus Touch ID. (`security` returns nothing
+  for a site you have saved.)
+- **Write** — the `security` tool writes only to the legacy login keychain,
+  which the Passwords app does not read, so nothing written by CLI appears in
+  the app.
+
+So any Apple involvement needs the app's GUI. Proton, by contrast, is fully
+scriptable through `pass-cli`. That leaves exactly one automatable direction,
+and it is a point-in-time copy rather than a sync:
+
+```bash
+# Apple Passwords -> File > Export All Passwords (Touch ID) -> a CSV, then:
+claude-autonomous proton-seed ~/Downloads/Passwords.csv --vault Dev --apply
+```
+
+Passwords are piped as JSON to `pass-cli item create`, never placed in `argv`.
+To go the other way, export from Proton and import that CSV into the Passwords
+app by hand.
+
+The practical answer: stop trying to mirror them. Keep Proton as the single
+vault the tool reads from live, and let Apple Passwords be your device autofill.
+
+---
+
 ## Getting keys in without anyone typing
 
 The usual advice is "store your key first". That is backwards — the key is
