@@ -28,7 +28,7 @@ if ($argv.Count -gt 1) { $Rest = @($argv[1..($argv.Count - 1)]) }
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$script:VERSION = '1.5.0'
+$script:VERSION = '1.6.0'
 $script:MARKER  = 'claude-autonomous'
 
 $script:ClaudeDir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR }
@@ -451,7 +451,8 @@ function Invoke-Doctor {
     Write-Host ''
     Write-Host 'authenticated CLIs (these do the work without the secret being read)'
     foreach ($pair in @(@('gh','auth','status'), @('vercel','whoami'),
-                        @('supabase','projects','list'), @('firebase','projects:list'))) {
+                        @('supabase','projects','list'), @('firebase','projects:list'),
+                        @('pass-cli','info'))) {
         $bin = $pair[0]
         if (-not (Get-Command $bin -ErrorAction SilentlyContinue)) {
             Write-Host ("      {0} not installed" -f $bin.PadRight(10)); continue

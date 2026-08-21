@@ -104,6 +104,21 @@ header, and closes itself after 15 idle minutes. It exists so that handing over
 a key is a paste rather than a remembered command — not so that anything can
 sign in on your behalf.
 
+**Proton Pass, if you use it, is the cleanest source of all.** Its official
+`pass-cli` authenticates once (yours — a login or a Personal Access Token), then
+reads non-interactively like any signed-in CLI:
+
+```bash
+pass-cli run -- ./deploy.sh                    # inject vault secrets, masked
+pass-cli agent create claude --expiration 3m --vault Dev   # scope an agent to the tool
+```
+
+An agent session can inject secrets into a command but is refused
+`--show-secrets`, so values never reach a transcript, and every access is in
+`pass-cli agent monitor`. No CSV, no sync, no copy — read straight from the vault.
+You do not need to sync Apple Passwords to Proton: put keys in Proton and read
+them there.
+
 **From a password manager.** macOS blocks bulk-reading the Apple Passwords
 store (it needs the app plus Touch ID per item, and there is no export CLI). The
 manual path is the app's own File -> Export All Passwords, then:

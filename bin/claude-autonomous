@@ -9,7 +9,7 @@
 # overwrite, and the previous file is copied to ~/.claude/backups/ first.
 set -euo pipefail
 
-VERSION="1.5.0"
+VERSION="1.6.0"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 SETTINGS="$CLAUDE_DIR/settings.json"
 BACKUPS="$CLAUDE_DIR/backups"
@@ -468,7 +468,8 @@ cmd_doctor() {
   echo
   echo "authenticated CLIs (these do the work without the secret being read)"
   for c in "gh:gh auth status" "vercel:vercel whoami" \
-           "supabase:supabase projects list" "firebase:firebase projects:list"; do
+           "supabase:supabase projects list" "firebase:firebase projects:list" \
+           "pass-cli:pass-cli info"; do
     local bin="${c%%:*}" probe="${c#*:}"
     if command -v "$bin" >/dev/null 2>&1; then
       if $probe >/dev/null 2>&1; then printf '  OK  %-10s signed in\n' "$bin"

@@ -58,6 +58,27 @@ case ":$PATH:" in
     ;;
 esac
 
+# Proton Pass CLI, best effort: it is the cleanest credential source, but the
+# installer must not fail if the download is unavailable.
+if ! command -v pass-cli >/dev/null 2>&1; then
+  arch="$(uname -m)"; os="$(uname -s)"
+  case "$os/$arch" in
+    Darwin/arm64)  pc="pass-cli-macos-aarch64" ;;
+    Darwin/x86_64) pc="pass-cli-macos-x86_64" ;;
+    Linux/x86_64)  pc="pass-cli-linux-x86_64" ;;
+    *)             pc="" ;;
+  esac
+  if [ -n "$pc" ]; then
+    say "-> fetching the Proton Pass CLI (optional)"
+    if curl -fsSL "https://proton.me/download/pass-cli/2.3.2/$pc" -o "$BIN_DIR/pass-cli" 2>/dev/null; then
+      chmod +x "$BIN_DIR/pass-cli"
+    else
+      rm -f "$BIN_DIR/pass-cli"
+      say "   (skipped — download unavailable; install later from proton.me/pass)"
+    fi
+  fi
+fi
+
 say ""
 say "-> applying the settings"
 "$BIN_DIR/claude-autonomous" on

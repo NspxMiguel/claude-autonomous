@@ -111,6 +111,23 @@ in a transcript that may sync to the cloud. `import` reports the character count
 and nothing else. Prefer this over reading the key off the page — a screenshot
 or page-text read puts the secret in the conversation permanently.
 
+**Proton Pass is the strongest source, when it is present.** It ships an
+official CLI (`pass-cli`) with an agent model built for exactly this:
+
+```bash
+pass-cli info                         # is there a session?
+pass-cli run -- ./deploy.sh           # inject vault secrets, masked on stdout
+pass-cli item view --item-title X --field password --output json
+```
+
+The user does the one-time auth (`pass-cli login`, or a Personal Access Token) —
+that is theirs, like `gh auth login`. Best of all, they can scope an **agent**
+to me: `pass-cli agent create claude --expiration 3m --vault <name>`. An agent
+session can `run` secrets into a command but is refused `--show-secrets`, so a
+value cannot be dumped into this transcript, and everything it touches lands in
+`pass-cli agent monitor`. When a Proton session or agent exists, prefer reading
+from it live over copying anything into the keychain — no duplication, no drift.
+
 **Pulling from a password manager (Apple Passwords, 1Password, Bitwarden).**
 macOS will not let anything bulk-read the Apple Passwords store — that vault
 needs the app plus Touch ID per item, and there is no export CLI. Confirmed by

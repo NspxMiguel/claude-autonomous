@@ -106,6 +106,21 @@ forjado e se fecha após 15 minutos parado. Ele existe pra entregar uma chave
 virar um colar em vez de um comando decorado — não pra alguma coisa entrar em
 conta por você.
 
+**O Proton Pass, se você usa, é a fonte mais limpa de todas.** O `pass-cli`
+oficial autentica uma vez (é sua — login ou Personal Access Token) e daí lê sem
+interação, como qualquer CLI logada:
+
+```bash
+pass-cli run -- ./deploy.sh                    # injeta os segredos do cofre, mascarado
+pass-cli agent create claude --expiration 3m --vault Dev   # dá ao agente um escopo
+```
+
+Uma sessão de agente injeta segredo no comando mas é proibida de usar
+`--show-secrets`, então valor nenhum cai num transcript, e todo acesso fica no
+`pass-cli agent monitor`. Sem CSV, sem sync, sem cópia — lê direto do cofre. Você
+não precisa sincronizar o app Senhas com o Proton: põe as chaves no Proton e lê
+de lá.
+
 **De um gerenciador de senhas.** O macOS não deixa ler em massa o cofre do app
 Senhas (precisa do app + Touch ID por item, e não há CLI de export). O caminho
 manual é o próprio Arquivo -> Exportar Todas as Senhas do app, e então:
