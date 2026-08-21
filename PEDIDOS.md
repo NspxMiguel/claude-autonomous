@@ -116,6 +116,31 @@ branches do Windows são renderizadas e verificadas a partir do macOS.
 
 ---
 
+## [ENTREGUE] Pedir segredo ao Miguel + portabilidade pelo Proton — v1.8.0
+
+**Palavras dele:** *"faz q puxa pelo proton, e da pra adicionar senhas tbm
+quando precisa... vc precisa da senha do meu google por exemplo, ai vc pede...
+ai quando fala ok abre uma janela pra vc adicionar sua senha, ai ela é salva pro
+app e pro proton... se vc trocar de pc, só logar no proton q todas as suas senhas
+estaram la. api funciona assim tbm?"*
+
+**O fluxo, feito:** `claude-autonomous request GOOGLE_PASSWORD "motivo"` abre o
+cofre local com um aviso dizendo o que eu preciso e por quê, campo já
+preenchido. **Ele** digita o valor — eu nunca vejo. Ao salvar, vai pro chaveiro
+e, se ele estiver logado no Proton, cria um item login no Proton também (valor
+por JSON no stdin, nunca no argv). Máquina nova: loga no Proton, tudo lá.
+
+**A honestidade sobre "e pro app Apple":** não dá pra escrever no app Senhas por
+CLI. Então a mensagem diz exatamente onde entrou — "chaveiro" ou "chaveiro,
+Proton" — nunca finge que salvou no Apple. Testei com run real e com um pass-cli
+simulado logado (item chegou com estrutura certa no cofre alvo).
+
+**"api funciona assim tbm?" — sim.** Chave é só um segredo, mesmo caminho. Em
+geral eu pego a API direto de um painel logado (botão copiar → `secret import`);
+o `request` é o recurso pra quando eu realmente preciso dele.
+
+---
+
 ## [ENTREGUE] Proton Pass como fonte de credencial — v1.6.0
 
 **Palavras dele:** *"ve se o proton da pra puxar, q se nao eu coloco as senhas la
