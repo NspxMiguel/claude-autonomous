@@ -28,7 +28,7 @@ if ($argv.Count -gt 1) { $Rest = @($argv[1..($argv.Count - 1)]) }
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$script:VERSION = '1.7.0'
+$script:VERSION = '1.8.0'
 $script:MARKER  = 'claude-autonomous'
 
 $script:ClaudeDir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR }
@@ -497,6 +497,7 @@ claude-autonomous — turn permission prompts off in Claude Code, and back on.
   import-csv FILE [--apply]       import a password-manager CSV export
   proton-seed FILE [--apply]      copy a CSV export into a Proton Pass vault
   vault                           open a local page to paste keys into
+  request NAME [reason]           open the vault asking for one named secret
   run NAME[,NAME] -- cmd ...      run cmd with those secrets in its environment
 
 `run` is the point: the command receives the credential, the agent that wrote
@@ -520,6 +521,12 @@ switch ($Command) {
     'import-csv'               { Invoke-Helper 'import_csv.py' $Rest }
     'proton-seed'              { Invoke-Helper 'csv_to_proton.py' $Rest }
     'vault'                    { Invoke-Helper 'vault.py'   $Rest }
+    'request'                  {
+        if ($Rest.Count -lt 1) { Die 'usage: claude-autonomous request NAME [reason]' }
+        $name = $Rest[0]
+        $reason = if ($Rest.Count -gt 1) { $Rest[1..($Rest.Count-1)] -join ' ' } else { '' }
+        Invoke-Helper 'vault.py' @('--need', $name, '--reason', $reason)
+    }
     { $_ -in 'secret','secrets' } { Invoke-Secret $Rest }
     'run'                      { Invoke-Run $Rest }
     { $_ -in '-v','--version' }{ Write-Host "claude-autonomous $($script:VERSION)" }

@@ -56,14 +56,46 @@ def cli(*args: str, stdin: str | None = None) -> tuple[int, str]:
     return p.returncode, (p.stdout + p.stderr).strip()
 
 
+PROTON_VAULT = os.environ.get("CLAUDE_AUTONOMOUS_PROTON_VAULT") or ""
+
+
+def proton_session() -> bool:
+    try:
+        return subprocess.run(["pass-cli", "info"], capture_output=True).returncode == 0
+    except FileNotFoundError:
+        return False
+
+
+def proton_store(name: str, value: str) -> bool:
+    """Best-effort write to Proton Pass as a login item, value as password on
+    stdin (never argv). Only runs when a session exists."""
+    if not proton_session():
+        return False
+    tmpl = {"title": name, "content": {"username": name, "password": value, "urls": []}}
+    cmd = ["pass-cli", "item", "create", "login", "--from-template", "-"]
+    if PROTON_VAULT:
+        cmd[3:3] = ["--vault-name", PROTON_VAULT]
+    try:
+        p = subprocess.run(cmd, input=json.dumps(tmpl), capture_output=True, text=True)
+        return p.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
 def store(name: str, value: str) -> tuple[bool, str]:
     if not NAME_RE.match(name):
         return False, "name must look like an environment variable"
     if not value.strip():
         return False, "empty value"
+    value = value.strip()
     code, out = cli("secret", "import", name, stdin=value)
-    # Never echo the value back, even on failure.
-    return code == 0, out if code else f"stored {name} ({len(value.strip())} characters)"
+    if code != 0:
+        return False, out  # keychain failure: never echo the value
+    where = ["chaveiro"]
+    if proton_store(name, value):
+        where.append("Proton")
+    # macOS Passwords app cannot be written from a CLI, so it is never a target.
+    return True, f"guardado {name} ({len(value)} chars) em: {', '.join(where)}"
 
 
 def parse_env(text: str) -> list[tuple[str, str]]:
@@ -119,12 +151,18 @@ li{display:flex;justify-content:space-between;align-items:center;
 li:last-child{border-bottom:0}
 li button{background:transparent;color:var(--muted);border:1px solid var(--line);padding:.2rem .55rem;font-size:12px}
 .hint{color:var(--muted);font-size:.85rem;margin-top:.5rem}
+.ask{background:rgba(224,138,78,.12);border:1px solid var(--accent);border-radius:9px;
+     padding:.8rem 1rem;margin:0 0 1.2rem;font-size:.95rem}
+.ask b{color:var(--accent)}
 code{background:var(--code);padding:.1em .35em;border-radius:4px;font-size:.9em}
 </style></head><body><div class="wrap">
 
 <h1>Cofre</h1>
-<p class="sub">O valor vai direto para o chaveiro do sistema. Ele não passa pela
-conversa, não vai para o transcript, e a lista abaixo nunca mostra o conteúdo.</p>
+<div id="ask" class="ask" hidden></div>
+<p class="sub">O valor vai para o chaveiro do sistema e, se você estiver logado,
+para o Proton Pass também — assim ele te acompanha entre computadores. Não passa
+pela conversa, não vai para o transcript, e a lista abaixo nunca mostra o
+conteúdo.</p>
 
 <h2>Guardar uma chave</h2>
 <div class="card">
@@ -159,7 +197,21 @@ conversa, não vai para o transcript, e a lista abaixo nunca mostra o conteúdo.
 </div>
 
 <script>
-const T = new URLSearchParams(location.search).get('t') || '';
+const Q = new URLSearchParams(location.search);
+const T = Q.get('t') || '';
+const NEED = Q.get('need') || '';
+const REASON = Q.get('reason') || '';
+if (NEED) {
+  const a = document.getElementById('ask');
+  a.hidden = false;
+  a.innerHTML = 'Preciso de <b>' + NEED.replace(/[<>&]/g,'') + '</b>' +
+    (REASON ? ' — ' + REASON.replace(/[<>&]/g,'') : '') +
+    '.<br>Digite o valor abaixo e clique Guardar. Eu nunca vejo o que você digita aqui.';
+  addEventListener('DOMContentLoaded', () => {
+    document.getElementById('n').value = NEED;
+    document.getElementById('v').focus();
+  });
+}
 const api = (path, body) => fetch(path + '?t=' + encodeURIComponent(T), {
   method: 'POST', headers: {'Content-Type': 'application/json'},
   body: JSON.stringify(body || {})
@@ -326,7 +378,14 @@ def main() -> int:
     httpd = http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler)
     httpd.daemon_threads = True
     real_port = httpd.socket.getsockname()[1]
-    url = f"http://127.0.0.1:{real_port}/?t={TOKEN}"
+    from urllib.parse import urlencode
+    params = {"t": TOKEN}
+    for i, a in enumerate(sys.argv):
+        if a == "--need" and i + 1 < len(sys.argv):
+            params["need"] = sys.argv[i + 1]
+        if a == "--reason" and i + 1 < len(sys.argv):
+            params["reason"] = sys.argv[i + 1]
+    url = f"http://127.0.0.1:{real_port}/?{urlencode(params)}"
 
     def reaper():
         while True:

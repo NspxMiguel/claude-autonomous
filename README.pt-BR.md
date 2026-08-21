@@ -76,6 +76,31 @@ dbus-run-session -- tests/linux-in-container.sh --with-pwsh   # em container Lin
 
 ---
 
+## Quando só você tem o segredo: peça, não digite
+
+Alguns segredos não estão em disco nenhum e ficam atrás de um login que só você
+passa — senha de site, banco. Para esses, o agente abre o cofre focado na única
+coisa que precisa:
+
+```bash
+claude-autonomous request GOOGLE_PASSWORD "para entrar na sua conta Google"
+```
+
+Abre uma página local com um aviso dizendo o que ele precisa e por quê. **Você**
+digita o valor; o agente nunca vê. É salvo no chaveiro e, se você estiver logado
+no Proton, no Proton também — então num computador novo é só logar no Proton que
+tudo está lá.
+
+**Honestidade sobre "e no Apple também":** não dá pra escrever no app Senhas da
+Apple por CLI, então o cofre salva no chaveiro e no Proton, não no app Senhas. O
+Proton é o portátil, que é a parte que importa.
+
+**Chave de API funciona igual** — chave é só um segredo. Em geral o agente pega a
+chave direto de um painel onde você está logado (botão de copiar →
+`secret import`); o `request` é o recurso pra quando ele realmente precisa de você.
+
+---
+
 ## Sync Apple ↔ Proton nos dois sentidos: não dá
 
 Não existe sync ao vivo e bidirecional entre o app Senhas e o Proton Pass, e não

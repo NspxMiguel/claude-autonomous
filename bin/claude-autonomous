@@ -9,7 +9,7 @@
 # overwrite, and the previous file is copied to ~/.claude/backups/ first.
 set -euo pipefail
 
-VERSION="1.7.0"
+VERSION="1.8.0"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 SETTINGS="$CLAUDE_DIR/settings.json"
 BACKUPS="$CLAUDE_DIR/backups"
@@ -453,6 +453,17 @@ cmd_harvest() {
     python3 "$here/harvest.py" "$@"
 }
 
+cmd_request() {
+  # I hit a credential I do not have. This opens the vault focused on it, with a
+  # reason, so the user types the value (never me) and it is saved to the
+  # keychain and to Proton. Usage: request NAME [reason...]
+  local here; here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local name="${1:-}"; shift || true
+  [ -n "$name" ] || die "usage: claude-autonomous request NAME [reason]"
+  CLAUDE_AUTONOMOUS_CLI="$here/$(basename "${BASH_SOURCE[0]}")" \
+    python3 "$here/vault.py" --need "$name" --reason "$*"
+}
+
 cmd_vault() {
   # A local page for handing a key over without recalling a command. The value
   # goes page -> this CLI on stdin -> keychain; it never reaches a transcript.
@@ -539,6 +550,7 @@ claude-autonomous — turn permission prompts off in Claude Code, and back on.
   import-csv FILE [--apply]       import a password-manager CSV export
   proton-seed FILE [--apply]      copy a CSV export into a Proton Pass vault
   vault                           open a local page to paste keys into
+  request NAME [reason]           open the vault asking for one named secret
   run NAME[,NAME] -- cmd ...      run cmd with those secrets in its environment
 
 `import` is for keys already on screen in a dashboard you are signed in to:
@@ -556,6 +568,7 @@ case "${1:-status}" in
   status|"")    cmd_status ;;
   doctor)       cmd_doctor ;;
   vault)        shift; cmd_vault "$@" ;;
+  request)      shift; cmd_request "$@" ;;
   harvest)      shift; cmd_harvest "$@" ;;
   import-csv)   shift; cmd_import_csv "$@" ;;
   proton-seed)  shift; cmd_proton_seed "$@" ;;

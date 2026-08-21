@@ -74,6 +74,31 @@ dbus-run-session -- tests/linux-in-container.sh --with-pwsh   # in a Linux conta
 
 ---
 
+## When only you have the secret: ask, don't type
+
+Some secrets live nowhere on disk and behind a login only you can pass — a
+website password, a bank. For those the agent opens a vault focused on the one
+thing it needs:
+
+```bash
+claude-autonomous request GOOGLE_PASSWORD "to sign in to your Google account"
+```
+
+A local page opens with a banner naming what is needed and why. **You** type the
+value; the agent never sees it. It is saved to the keychain and, when you are
+logged into Proton, to Proton as well — so on a new machine you just log into
+Proton and everything is there.
+
+**Honesty about "and Apple too":** it cannot be written to the Apple Passwords
+app from a CLI, so the vault saves to the keychain and Proton, not to the
+Passwords app. Proton is the portable one, which is the part that matters.
+
+**API keys work the same way** — a key is just a secret. Usually the agent can
+take an API key straight from a dashboard you are signed into (its copy button →
+`secret import`); `request` is the fallback for when it truly needs you.
+
+---
+
 ## Two-way Apple ↔ Proton sync: not possible
 
 There is no live, two-way sync between Apple Passwords and Proton Pass, and one

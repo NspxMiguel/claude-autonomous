@@ -153,6 +153,22 @@ because a site password cannot drive `run` and importing the whole vault just
 duplicates it. `--sites`/`--all` widen it if the user asks. `--rm-after` shreds
 the plaintext CSV; if not passed, tell them the CSV is still on disk.
 
+**When a secret exists nowhere and only the user has it** (a website password,
+a key behind a login only they can pass) — ask for it by opening the vault on
+that one field:
+
+```bash
+claude-autonomous request GOOGLE_PASSWORD "para entrar na sua conta Google"
+```
+
+That opens a local page with a banner naming what I need and why, the field
+pre-filled with the name. The user types the value — never me — and it is saved
+to the keychain and, if a Proton session exists, to Proton too, so it follows
+them to another machine. Tell them to type it there, wait, then read it back
+with `run`. This is the honest shape of "ask the user": I detect the need and
+open the door; they put the secret in; the value never touches this
+conversation.
+
 **5. Only then, hand it back** — and only the part that is genuinely theirs.
 `claude-autonomous vault` opens a local page where they paste a key, or a whole
 `.env`, straight into the keychain; it beats making them recall a command.
