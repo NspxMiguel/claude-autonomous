@@ -116,6 +116,38 @@ branches do Windows são renderizadas e verificadas a partir do macOS.
 
 ---
 
+## [ENTREGUE — parcial pelo macOS] Puxar do app Senhas, automático + manual — v1.5.0
+
+**Palavras dele:** *"ve se n da pra puxar minhas senhas do apple senhas uai,
+deixa a opção automatica e a manual, melhor dos 2 mundo"*
+
+**O muro, com prova:** o cofre do app Senhas fica no `keychain-2.db`
+(data-protection keychain do iCloud). O `security find-internet-password` para
+`accounts.google.com` devolveu "não encontrado" mesmo ele tendo Google salvo —
+essa ferramenta não lê esse cofre. Não há CLI de export; cada leitura exige o app
++ Touch ID. Os 43 itens que o `security` lê no keychain antigo são de sistema
+(Chrome Safe Storage etc.), não as senhas de site dele.
+
+**Automático de dentro do app Senhas: impossível.** Não é preguiça — é o macOS.
+
+**Os dois mundos entregues:**
+- **automático** = `harvest` (varre arquivo, sem interação) — já existia, achou 2;
+- **manual** = `import-csv`: ele exporta do app Senhas (Arquivo → Exportar Todas
+  as Senhas, com Touch ID dele) e eu importo o CSV.
+
+**`import-csv`:** lê o formato do Apple (Title,URL,Username,Password) e os
+equivalentes de 1Password/Bitwarden/Chrome. Por padrão pega só o que tem cara de
+token de dev e **ignora login de site** — senha de site não serve pro `run` e
+importar o cofre inteiro só duplica. `--sites`/`--all` incluem. Nada entra sem
+`--apply`. Valor nunca é impresso. `--rm-after` sobrescreve e apaga o CSV; um
+`--shred FILE` puro faz o mesmo sem importar.
+
+**Concern que declarei e mantenho:** senha de site (Gmail, banco) não habilita
+autonomia nenhuma, porque logar como ele continua fora. Por isso o filtro padrão
+deixa essas de fora em vez de despejar o cofre num store de injeção de shell.
+
+---
+
 ## [ENTREGUE] Credencial automática, sem ele digitar — v1.4.0
 
 **Palavras dele:** *"ja q vc n pode colocar a api, entrar em minha conta, coloca
